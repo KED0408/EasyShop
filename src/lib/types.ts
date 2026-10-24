@@ -31,6 +31,40 @@ export interface Item {
   is_cupboard: boolean;
   buy_frequency: "weekly" | "fortnightly" | "as_needed" | null;
   usual_pack: string | null;
+  pack_size: number | null;
+  aliases: string[];
+}
+
+export interface PantryRow {
+  id: string;
+  item_id: string;
+  qty: number;
+  use_by: string | null;
+  source: "leftover" | "manual";
+}
+
+export interface ShoppingList {
+  id: string;
+  plan_id: string;
+  week: number;
+  status: "open" | "bought";
+  bought_at: string | null;
+}
+
+export type LineSource = "meal" | "regular" | "alexa" | "added";
+
+export interface ListLine {
+  id: string;
+  list_id: string;
+  item_id: string;
+  source: LineSource;
+  need: number | null;
+  from_pantry: number;
+  packs: number;
+  have_it: boolean;
+  ticked: boolean;
+  removed: boolean;
+  note: string | null;
 }
 
 export interface Component {

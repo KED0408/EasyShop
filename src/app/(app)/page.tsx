@@ -53,9 +53,24 @@ export default function Home() {
       </section>
 
       <section className="card">
+        <h2>This week&apos;s shop</h2>
+        <p className="muted" style={{ margin: 0 }}>Built from the plan, minus leftovers, plus your regulars and the Alexa list.</p>
+        <div className="row">
+          <Link className="btn primary" href="/list">Shopping list</Link>
+          <Link className="btn" href="/fridge">What&apos;s still in?</Link>
+          <Link className="btn" href="/cupboard">Store cupboard</Link>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Household</h2>
+        <p className="muted" style={{ margin: 0 }}>Names, portion sizes and calorie targets.</p>
+        <Link className="btn" href="/household">Edit household</Link>
+      </section>
+
+      <section className="card">
         <h2>Coming next</h2>
         <ul className="list small">
-          <li><b>Shopping list &amp; store cupboard</b> — weekly list from the plan, leftovers, Alexa import.</li>
           <li><b>Price check</b> — Tesco (Clubcard), Sainsbury&apos;s, Morrisons and Ocado, with a budget alert.</li>
           <li><b>Basket fill</b> — the cheapest store&apos;s trolley filled for you to book and pay.</li>
         </ul>
