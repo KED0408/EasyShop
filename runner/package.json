@@ -1,0 +1,20 @@
+{
+  "name": "easyshop-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runs EasyShop's supermarket price checks on your Windows laptop",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "setup": "node setup.mjs",
+    "start": "node runner.mjs",
+    "install-startup": "node install-startup.mjs",
+    "remove-startup": "node install-startup.mjs --remove",
+    "test": "node test/parse.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "dotenv": "17.2.3",
+    "playwright": "1.56.1"
+  }
+}

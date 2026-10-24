@@ -8,7 +8,7 @@ const TABS = [
   { href: "/plans", label: "Plans" },
   { href: "/meals", label: "Meals" },
   { href: "/list", label: "List" },
-  { href: "/cupboard", label: "Cupboard" },
+  { href: "/prices", label: "Prices" },
 ];
 
 export default function Tabs() {

@@ -329,6 +329,7 @@ export default function ListPage() {
             ? <button className="btn primary" onClick={markBought} disabled={!!busy}>Mark as bought</button>
             : <button className="btn" onClick={reopen}>Reopen this list</button>}
           <Link className="btn" href="/fridge">What&apos;s still in?</Link>
+          <Link className="btn" href="/prices">Check prices</Link>
         </div>
       )}
     </main>

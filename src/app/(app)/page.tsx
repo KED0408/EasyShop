@@ -63,6 +63,15 @@ export default function Home() {
       </section>
 
       <section className="card">
+        <h2>Prices</h2>
+        <p className="muted" style={{ margin: 0 }}>Compare Tesco (Clubcard), Sainsbury&apos;s, Morrisons and Ocado for this week&apos;s list, with your budget alert.</p>
+        <div className="row">
+          <Link className="btn primary" href="/prices">Check prices</Link>
+          <Link className="btn" href="/settings">Budget &amp; settings</Link>
+        </div>
+      </section>
+
+      <section className="card">
         <h2>Household</h2>
         <p className="muted" style={{ margin: 0 }}>Names, portion sizes and calorie targets.</p>
         <Link className="btn" href="/household">Edit household</Link>
@@ -71,8 +80,8 @@ export default function Home() {
       <section className="card">
         <h2>Coming next</h2>
         <ul className="list small">
-          <li><b>Price check</b> — Tesco (Clubcard), Sainsbury&apos;s, Morrisons and Ocado, with a budget alert.</li>
           <li><b>Basket fill</b> — the cheapest store&apos;s trolley filled for you to book and pay.</li>
+          <li><b>Phone notifications</b> — price check results and budget alerts.</li>
         </ul>
       </section>
     </main>
