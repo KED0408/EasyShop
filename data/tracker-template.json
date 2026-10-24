@@ -1,0 +1,234 @@
+{
+ "A": {
+  "Mon": [
+   {
+    "slot": "breakfast",
+    "meal": "3-egg omelette with spinach, mushrooms & cheddar"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Chicken Caesar-style salad with avocado (no croutons)"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Roast salmon, tenderstem broccoli & courgette"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries & almonds"
+   }
+  ],
+  "Tue": [
+   {
+    "slot": "snack",
+    "meal": "2 boiled eggs + 30 g almonds"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Batch beef & pepper chilli with cheddar, soured cream & avocado"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with blueberries"
+   }
+  ],
+  "Wed": [
+   {
+    "slot": "snack",
+    "meal": "2 boiled eggs + 30 g mixed nuts"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Sirloin steak, garlic mushrooms, green beans & feta side salad"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries"
+   }
+  ],
+  "Thu": [
+   {
+    "slot": "snack",
+    "meal": "Thick-cut ham & cheddar roll-ups + 2 boiled eggs"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Batch Thai green chicken curry with cauliflower rice"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt + 2 squares 85% dark chocolate"
+   }
+  ],
+  "Fri": [
+   {
+    "slot": "breakfast",
+    "meal": "Greek yogurt bowl with berries & mixed nuts"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Tuna & egg ni\u00e7oise-style salad with avocado"
+   },
+   {
+    "slot": "dinner",
+    "meal": "King prawn & pak choi stir-fry with cauliflower rice"
+   },
+   {
+    "slot": "snack",
+    "meal": "Cottage cheese with cucumber & almonds"
+   }
+  ],
+  "Sat": [
+   {
+    "slot": "breakfast",
+    "meal": "Scrambled eggs with smoked salmon & spinach"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Greek salad with feta & griddled chicken"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Pesto pork tenderloin with roast courgette & green beans"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries (smaller pot)"
+   }
+  ],
+  "Sun": [
+   {
+    "slot": "breakfast",
+    "meal": "Cooked breakfast: 3 eggs, 3 bacon medallions, mushrooms, tomato"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Roast chicken breast, cauliflower cheese & greens"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Batch chilli with side salad & avocado"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with blueberries (smaller pot)"
+   }
+  ]
+ },
+ "B": {
+  "Mon": [
+   {
+    "slot": "breakfast",
+    "meal": "3-egg omelette with spinach, mushrooms & cheddar"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Chicken Caesar-style salad with avocado (no croutons)"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Baked cod with chorizo, cherry tomatoes, spinach & feta"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries & almonds"
+   }
+  ],
+  "Tue": [
+   {
+    "slot": "snack",
+    "meal": "2 boiled eggs + 30 g almonds"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Batch lamb & beef koftas with tzatziki & Greek salad"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with blueberries"
+   }
+  ],
+  "Wed": [
+   {
+    "slot": "snack",
+    "meal": "2 boiled eggs + 30 g mixed nuts"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Chicken thighs in creamy mushroom sauce with tenderstem broccoli"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries"
+   }
+  ],
+  "Thu": [
+   {
+    "slot": "snack",
+    "meal": "Thick-cut ham & cheddar roll-ups + 2 boiled eggs"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Batch turkey meatballs in tomato sauce with courgetti & parmesan"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt + 2 squares 85% dark chocolate"
+   }
+  ],
+  "Fri": [
+   {
+    "slot": "breakfast",
+    "meal": "Greek yogurt bowl with berries & mixed nuts"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Tuna & egg ni\u00e7oise-style salad with avocado"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Chicken fajita bowl with guacamole & soured cream"
+   },
+   {
+    "slot": "snack",
+    "meal": "Cottage cheese with cucumber & almonds"
+   }
+  ],
+  "Sat": [
+   {
+    "slot": "breakfast",
+    "meal": "Scrambled eggs with smoked salmon & spinach"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Greek salad with feta & griddled chicken"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Pan-fried sea bass with salsa verde, crushed cauliflower & green beans"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with raspberries (smaller pot)"
+   }
+  ],
+  "Sun": [
+   {
+    "slot": "breakfast",
+    "meal": "Cooked breakfast: 3 eggs, 3 bacon medallions, mushrooms, tomato"
+   },
+   {
+    "slot": "lunch",
+    "meal": "Roast chicken breast, cauliflower cheese & greens"
+   },
+   {
+    "slot": "dinner",
+    "meal": "Thai pork lettuce cups with crushed peanuts"
+   },
+   {
+    "slot": "snack",
+    "meal": "Greek yogurt with blueberries (smaller pot)"
+   }
+  ]
+ }
+}

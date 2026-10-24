@@ -1,0 +1,1270 @@
+{
+ "meta": {
+  "eggs": {
+   "u": "x",
+   "a": "Dairy & eggs"
+  },
+  "spinach": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "mushrooms": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "cheddar": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "butter": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "olive oil": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "chicken breast (raw)": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "cos lettuce": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "parmesan": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "caesar dressing (light)": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "salmon fillets": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "tenderstem broccoli": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "courgette": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "Greek yogurt (full-fat, e.g. Fage 5%)": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "raspberries": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "blueberries": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "almonds": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "mixed nuts": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "beef mince 5%": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "chopped tomatoes (tin)": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "red peppers": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "onions": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "soured cream": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "avocados": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "sirloin steak": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "green beans": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "chicken thighs boneless skinless": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "light coconut milk": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "Thai green curry paste": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "cauliflower rice (fresh/frozen)": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "tuna in spring water (tins)": {
+   "u": "x",
+   "a": "Cupboard"
+  },
+  "cherry tomatoes": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "cucumber": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "black olives": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "smoked salmon": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "king prawns (raw)": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "pak choi": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "sesame oil": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "soy sauce": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "feta": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "back bacon medallions": {
+   "u": "x",
+   "a": "Meat & fish"
+  },
+  "tomatoes": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "pork tenderloin": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "cauliflower": {
+   "u": "g",
+   "a": "Fruit & veg"
+  },
+  "cottage cheese": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "dark chocolate 85%": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "cooked ham (thick-cut)": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "pesto": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "garlic & spices": {
+   "u": "x",
+   "a": "Cupboard"
+  },
+  "lemon": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "whey protein (optional)": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "cod loin fillets": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "cooking chorizo": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "lamb mince": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "double cream": {
+   "u": "g",
+   "a": "Dairy & eggs"
+  },
+  "turkey mince (2% fat)": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "sea bass fillets": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "pork mince (5% fat)": {
+   "u": "g",
+   "a": "Meat & fish"
+  },
+  "roasted peanuts": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "capers": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "fresh herbs (parsley, mint, coriander)": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "limes": {
+   "u": "x",
+   "a": "Fruit & veg"
+  },
+  "fajita spice": {
+   "u": "g",
+   "a": "Cupboard"
+  },
+  "little gem lettuce": {
+   "u": "g",
+   "a": "Fruit & veg"
+  }
+ },
+ "meals": [
+  {
+   "name": "3-egg omelette with spinach, mushrooms & cheddar",
+   "kcal": 440,
+   "p": 31,
+   "items": [
+    [
+     "eggs",
+     3
+    ],
+    [
+     "spinach",
+     40
+    ],
+    [
+     "mushrooms",
+     80
+    ],
+    [
+     "cheddar",
+     30
+    ],
+    [
+     "butter",
+     8
+    ]
+   ],
+   "slots": [
+    "breakfast"
+   ]
+  },
+  {
+   "name": "Chicken Caesar-style salad with avocado (no croutons)",
+   "kcal": 460,
+   "p": 50,
+   "items": [
+    [
+     "chicken breast (raw)",
+     170
+    ],
+    [
+     "cos lettuce",
+     120
+    ],
+    [
+     "parmesan",
+     15
+    ],
+    [
+     "caesar dressing (light)",
+     30
+    ],
+    [
+     "cherry tomatoes",
+     60
+    ],
+    [
+     "avocados",
+     0.5
+    ]
+   ],
+   "slots": [
+    "lunch"
+   ]
+  },
+  {
+   "name": "Roast salmon, tenderstem broccoli & courgette",
+   "kcal": 490,
+   "p": 40,
+   "items": [
+    [
+     "salmon fillets",
+     150
+    ],
+    [
+     "tenderstem broccoli",
+     150
+    ],
+    [
+     "courgette",
+     150
+    ],
+    [
+     "olive oil",
+     12
+    ],
+    [
+     "lemon",
+     0.5
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt with raspberries & almonds",
+   "kcal": 270,
+   "p": 19,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     170
+    ],
+    [
+     "raspberries",
+     60
+    ],
+    [
+     "almonds",
+     15
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "2 boiled eggs + 30 g almonds",
+   "kcal": 330,
+   "p": 19,
+   "items": [
+    [
+     "eggs",
+     2
+    ],
+    [
+     "almonds",
+     30
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Batch beef & pepper chilli with cheddar, soured cream & avocado",
+   "kcal": 750,
+   "p": 66,
+   "items": [
+    [
+     "beef mince 5%",
+     250
+    ],
+    [
+     "chopped tomatoes (tin)",
+     200
+    ],
+    [
+     "red peppers",
+     0.5
+    ],
+    [
+     "onions",
+     0.25
+    ],
+    [
+     "olive oil",
+     8
+    ],
+    [
+     "cheddar",
+     30
+    ],
+    [
+     "soured cream",
+     30
+    ],
+    [
+     "avocados",
+     0.5
+    ],
+    [
+     "garlic & spices",
+     0
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt with blueberries",
+   "kcal": 220,
+   "p": 18,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     200
+    ],
+    [
+     "blueberries",
+     60
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "2 boiled eggs + 30 g mixed nuts",
+   "kcal": 330,
+   "p": 19,
+   "items": [
+    [
+     "eggs",
+     2
+    ],
+    [
+     "mixed nuts",
+     30
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Sirloin steak, garlic mushrooms, green beans & feta side salad",
+   "kcal": 710,
+   "p": 72,
+   "items": [
+    [
+     "sirloin steak",
+     250
+    ],
+    [
+     "mushrooms",
+     100
+    ],
+    [
+     "green beans",
+     120
+    ],
+    [
+     "butter",
+     10
+    ],
+    [
+     "cos lettuce",
+     60
+    ],
+    [
+     "cherry tomatoes",
+     60
+    ],
+    [
+     "olive oil",
+     10
+    ],
+    [
+     "feta",
+     30
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt with raspberries",
+   "kcal": 210,
+   "p": 19,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     200
+    ],
+    [
+     "raspberries",
+     60
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Thick-cut ham & cheddar roll-ups + 2 boiled eggs",
+   "kcal": 360,
+   "p": 36,
+   "items": [
+    [
+     "cooked ham (thick-cut)",
+     80
+    ],
+    [
+     "cheddar",
+     30
+    ],
+    [
+     "eggs",
+     2
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Batch Thai green chicken curry with cauliflower rice",
+   "kcal": 620,
+   "p": 56,
+   "items": [
+    [
+     "chicken thighs boneless skinless",
+     250
+    ],
+    [
+     "light coconut milk",
+     150
+    ],
+    [
+     "Thai green curry paste",
+     20
+    ],
+    [
+     "green beans",
+     60
+    ],
+    [
+     "red peppers",
+     0.5
+    ],
+    [
+     "olive oil",
+     5
+    ],
+    [
+     "cauliflower rice (fresh/frozen)",
+     150
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt + 2 squares 85% dark chocolate",
+   "kcal": 280,
+   "p": 17,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     170
+    ],
+    [
+     "dark chocolate 85%",
+     20
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Greek yogurt bowl with berries & mixed nuts",
+   "kcal": 380,
+   "p": 24,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     200
+    ],
+    [
+     "blueberries",
+     50
+    ],
+    [
+     "raspberries",
+     40
+    ],
+    [
+     "mixed nuts",
+     25
+    ]
+   ],
+   "slots": [
+    "breakfast"
+   ]
+  },
+  {
+   "name": "Tuna & egg ni\u00e7oise-style salad with avocado",
+   "kcal": 570,
+   "p": 46,
+   "items": [
+    [
+     "tuna in spring water (tins)",
+     1
+    ],
+    [
+     "eggs",
+     2
+    ],
+    [
+     "green beans",
+     80
+    ],
+    [
+     "cherry tomatoes",
+     80
+    ],
+    [
+     "cos lettuce",
+     60
+    ],
+    [
+     "black olives",
+     20
+    ],
+    [
+     "olive oil",
+     12
+    ],
+    [
+     "avocados",
+     0.5
+    ]
+   ],
+   "slots": [
+    "lunch"
+   ]
+  },
+  {
+   "name": "King prawn & pak choi stir-fry with cauliflower rice",
+   "kcal": 490,
+   "p": 53,
+   "items": [
+    [
+     "king prawns (raw)",
+     250
+    ],
+    [
+     "pak choi",
+     150
+    ],
+    [
+     "red peppers",
+     0.5
+    ],
+    [
+     "mushrooms",
+     60
+    ],
+    [
+     "sesame oil",
+     8
+    ],
+    [
+     "olive oil",
+     8
+    ],
+    [
+     "soy sauce",
+     15
+    ],
+    [
+     "cauliflower rice (fresh/frozen)",
+     150
+    ],
+    [
+     "eggs",
+     1
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Cottage cheese with cucumber & almonds",
+   "kcal": 240,
+   "p": 20,
+   "items": [
+    [
+     "cottage cheese",
+     150
+    ],
+    [
+     "cucumber",
+     100
+    ],
+    [
+     "almonds",
+     20
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Scrambled eggs with smoked salmon & spinach",
+   "kcal": 420,
+   "p": 35,
+   "items": [
+    [
+     "eggs",
+     3
+    ],
+    [
+     "smoked salmon",
+     60
+    ],
+    [
+     "spinach",
+     40
+    ],
+    [
+     "butter",
+     10
+    ]
+   ],
+   "slots": [
+    "breakfast"
+   ]
+  },
+  {
+   "name": "Greek salad with feta & griddled chicken",
+   "kcal": 460,
+   "p": 46,
+   "items": [
+    [
+     "chicken breast (raw)",
+     150
+    ],
+    [
+     "feta",
+     50
+    ],
+    [
+     "cucumber",
+     100
+    ],
+    [
+     "cherry tomatoes",
+     80
+    ],
+    [
+     "black olives",
+     20
+    ],
+    [
+     "onions",
+     0.25
+    ],
+    [
+     "olive oil",
+     12
+    ]
+   ],
+   "slots": [
+    "lunch"
+   ]
+  },
+  {
+   "name": "Pesto pork tenderloin with roast courgette & green beans",
+   "kcal": 470,
+   "p": 48,
+   "items": [
+    [
+     "pork tenderloin",
+     200
+    ],
+    [
+     "pesto",
+     25
+    ],
+    [
+     "courgette",
+     150
+    ],
+    [
+     "green beans",
+     100
+    ],
+    [
+     "olive oil",
+     10
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt with raspberries (smaller pot)",
+   "kcal": 180,
+   "p": 16,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     170
+    ],
+    [
+     "raspberries",
+     60
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Cooked breakfast: 3 eggs, 3 bacon medallions, mushrooms, tomato",
+   "kcal": 410,
+   "p": 38,
+   "items": [
+    [
+     "eggs",
+     3
+    ],
+    [
+     "back bacon medallions",
+     3
+    ],
+    [
+     "mushrooms",
+     80
+    ],
+    [
+     "tomatoes",
+     1
+    ],
+    [
+     "butter",
+     8
+    ]
+   ],
+   "slots": [
+    "breakfast"
+   ]
+  },
+  {
+   "name": "Roast chicken breast, cauliflower cheese & greens",
+   "kcal": 490,
+   "p": 58,
+   "items": [
+    [
+     "chicken breast (raw)",
+     170
+    ],
+    [
+     "cauliflower",
+     200
+    ],
+    [
+     "cheddar",
+     35
+    ],
+    [
+     "tenderstem broccoli",
+     100
+    ],
+    [
+     "butter",
+     10
+    ]
+   ],
+   "slots": [
+    "lunch"
+   ]
+  },
+  {
+   "name": "Batch chilli with side salad & avocado",
+   "kcal": 630,
+   "p": 54,
+   "items": [
+    [
+     "beef mince 5%",
+     200
+    ],
+    [
+     "chopped tomatoes (tin)",
+     200
+    ],
+    [
+     "red peppers",
+     0.5
+    ],
+    [
+     "onions",
+     0.25
+    ],
+    [
+     "olive oil",
+     8
+    ],
+    [
+     "cheddar",
+     25
+    ],
+    [
+     "cos lettuce",
+     60
+    ],
+    [
+     "cucumber",
+     60
+    ],
+    [
+     "avocados",
+     0.5
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Greek yogurt with blueberries (smaller pot)",
+   "kcal": 190,
+   "p": 16,
+   "items": [
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     170
+    ],
+    [
+     "blueberries",
+     50
+    ]
+   ],
+   "slots": [
+    "snack"
+   ]
+  },
+  {
+   "name": "Baked cod with chorizo, cherry tomatoes, spinach & feta",
+   "kcal": 480,
+   "p": 49,
+   "items": [
+    [
+     "cod loin fillets",
+     200
+    ],
+    [
+     "cooking chorizo",
+     20
+    ],
+    [
+     "cherry tomatoes",
+     100
+    ],
+    [
+     "spinach",
+     80
+    ],
+    [
+     "olive oil",
+     12
+    ],
+    [
+     "feta",
+     30
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Batch lamb & beef koftas with tzatziki & Greek salad",
+   "kcal": 750,
+   "p": 60,
+   "items": [
+    [
+     "lamb mince",
+     120
+    ],
+    [
+     "beef mince 5%",
+     100
+    ],
+    [
+     "onions",
+     0.25
+    ],
+    [
+     "Greek yogurt (full-fat, e.g. Fage 5%)",
+     100
+    ],
+    [
+     "cucumber",
+     130
+    ],
+    [
+     "cherry tomatoes",
+     80
+    ],
+    [
+     "feta",
+     30
+    ],
+    [
+     "olive oil",
+     8
+    ],
+    [
+     "fresh herbs (parsley, mint, coriander)",
+     0.5
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Chicken thighs in creamy mushroom sauce with tenderstem broccoli",
+   "kcal": 680,
+   "p": 63,
+   "items": [
+    [
+     "chicken thighs boneless skinless",
+     250
+    ],
+    [
+     "mushrooms",
+     100
+    ],
+    [
+     "double cream",
+     30
+    ],
+    [
+     "butter",
+     8
+    ],
+    [
+     "parmesan",
+     10
+    ],
+    [
+     "tenderstem broccoli",
+     150
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Batch turkey meatballs in tomato sauce with courgetti & parmesan",
+   "kcal": 590,
+   "p": 72,
+   "items": [
+    [
+     "turkey mince (2% fat)",
+     250
+    ],
+    [
+     "chopped tomatoes (tin)",
+     200
+    ],
+    [
+     "onions",
+     0.25
+    ],
+    [
+     "olive oil",
+     15
+    ],
+    [
+     "courgette",
+     250
+    ],
+    [
+     "parmesan",
+     20
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Chicken fajita bowl with guacamole & soured cream",
+   "kcal": 490,
+   "p": 49,
+   "items": [
+    [
+     "chicken breast (raw)",
+     180
+    ],
+    [
+     "red peppers",
+     1
+    ],
+    [
+     "onions",
+     0.5
+    ],
+    [
+     "fajita spice",
+     8
+    ],
+    [
+     "olive oil",
+     6
+    ],
+    [
+     "avocados",
+     0.5
+    ],
+    [
+     "limes",
+     0.5
+    ],
+    [
+     "soured cream",
+     20
+    ],
+    [
+     "little gem lettuce",
+     80
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Pan-fried sea bass with salsa verde, crushed cauliflower & green beans",
+   "kcal": 500,
+   "p": 46,
+   "items": [
+    [
+     "sea bass fillets",
+     200
+    ],
+    [
+     "olive oil",
+     15
+    ],
+    [
+     "capers",
+     10
+    ],
+    [
+     "fresh herbs (parsley, mint, coriander)",
+     0.5
+    ],
+    [
+     "lemon",
+     0.5
+    ],
+    [
+     "cauliflower",
+     200
+    ],
+    [
+     "butter",
+     10
+    ],
+    [
+     "green beans",
+     100
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  },
+  {
+   "name": "Thai pork lettuce cups with crushed peanuts",
+   "kcal": 590,
+   "p": 64,
+   "items": [
+    [
+     "pork mince (5% fat)",
+     250
+    ],
+    [
+     "little gem lettuce",
+     100
+    ],
+    [
+     "cucumber",
+     80
+    ],
+    [
+     "red peppers",
+     0.5
+    ],
+    [
+     "sesame oil",
+     5
+    ],
+    [
+     "soy sauce",
+     15
+    ],
+    [
+     "limes",
+     0.5
+    ],
+    [
+     "roasted peanuts",
+     30
+    ],
+    [
+     "fresh herbs (parsley, mint, coriander)",
+     0.5
+    ]
+   ],
+   "slots": [
+    "dinner"
+   ]
+  }
+ ]
+}
