@@ -36,6 +36,7 @@ function q(t) {
   return api;
 }
 const db = { from: q };
+const stubPages = { open: async () => null, close: async () => {} };
 const canned = {
   tesco: [{ name: "Tesco Greek Style Yogurt 500G", url: "https://www.tesco.com/shop/en-GB/products/258170229", price: 1.15, memberPrice: null, offer: null, inStock: true },
           { name: "Coca-Cola Zero Sugar 8 x 330ml", url: "https://www.tesco.com/shop/en-GB/products/1", price: 5.25, memberPrice: 4.5, offer: null, inStock: true }],
@@ -46,10 +47,10 @@ const canned = {
           { name: "Coca-Cola Zero Sugar", size: "8 x 330ml", url: "https://www.ocado.com/products/c/3", price: 5.0, offer: "Buy any 2 for £9", inStock: true }],
 };
 _setSearch(async (page, store, query) => canned[store].filter((c) => query.toLowerCase().split(" ").some((w) => c.name.toLowerCase().includes(w))));
-const m = await runMatch(db, {}, { id: "J", payload: { list_id: "L" } });
+const m = await runMatch(db, stubPages, { id: "J", payload: { list_id: "L" } });
 console.log("match", m);
 console.log(tables.store_products.map((s) => `${s.store} ${s.item_id} → ${s.product_name} (size ${s.size_qty})`).join("\n"));
-const r = await runPrice(db, {}, { id: "J", payload: { list_id: "L" } });
+const r = await runPrice(db, stubPages, { id: "J", payload: { list_id: "L" } });
 console.log("cheapest", r.cheapest);
 for (const [s, t] of Object.entries(r.totals)) console.log(s.padEnd(11), JSON.stringify(t));
 console.log(tables.price_lines.map((l) => `${l.store} ${l.item_id} qty ${l.qty} £${l.line_total}`).join("\n"));

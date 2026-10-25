@@ -86,20 +86,23 @@ export async function runMatch(db, pages, job) {
   const existing = await storeProducts(db, items.map((i) => i.id));
   const progress = makeProgress(db, job.id, stores, items.length);
   const errors = [];
-  await Promise.all(stores.map(async (store) => {
+  // One store at a time, in one tab, so the laptop isn't overloaded.
+  for (const store of stores) {
     const cache = new Map();
+    const page = await pages.open(store);
     for (const item of items) {
       const ex = existing.get(`${item.id}:${store}`);
       if (ex && !job.payload.refresh && ex.candidates?.length) { await progress(store); continue; }
       try {
-        await matchOne(db, pages[store], store, item, ex, cache);
+        await matchOne(db, page, store, item, ex, cache);
       } catch (e) {
         errors.push(`${STORE_INFO[store].name}: ${e.message}`);
         if (e.blocked) break;
       }
       await progress(store);
     }
-  }));
+    await pages.close(store);
+  }
   await progress(null, true);
   return { items: items.length, errors: [...new Set(errors)].slice(0, 10) };
 }
@@ -114,20 +117,21 @@ export async function runPrice(db, pages, job) {
   const out = [];
   const errors = [];
 
-  await Promise.all(stores.map(async (store) => {
+  for (const store of stores) {
     const cache = new Map();
     let blocked = false;
+    const page = await pages.open(store);
     for (const line of lines) {
       const item = itemMap.get(line.item_id);
       let match = sp.get(`${item.id}:${store}`);
       const rec = { store, item_id: item.id, qty: 0, in_stock: false, product_name: null, url: null, unit_price: null, member_price: null, offer_text: null, line_total: null };
       try {
         if (blocked) throw new Error("skipped");
-        if (!match) match = await matchOne(db, pages[store], store, item, null, cache);
+        if (!match) match = await matchOne(db, page, store, item, null, cache);
         if (match.status !== "none" && match.product_name) {
           const query = match.product_name;
           const key = `${store}:${query.toLowerCase()}`;
-          const results = cache.get(key) ?? (await search(pages[store], store, query));
+          const results = cache.get(key) ?? (await search(page, store, query));
           cache.set(key, results);
           const found = results.find((r) => samePath(r.url, match.url)) ?? results.find((r) => r.name === match.product_name);
           if (found && (found.price != null || found.memberPrice != null)) {
@@ -148,7 +152,8 @@ export async function runPrice(db, pages, job) {
       out.push(rec);
       await progress(store);
     }
-  }));
+    await pages.close(store);
+  }
   await progress(null, true);
 
   // Totals. Items a store doesn't have are estimated at the average of the other stores,

@@ -7,7 +7,6 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
-import { STORES } from "./lib/parse.mjs";
 import { STORE_INFO } from "./lib/stores.mjs";
 import { runMatch, runPrice } from "./lib/jobs.mjs";
 
@@ -24,32 +23,40 @@ export const PROFILE_DIR = process.env.PROFILE_DIR || path.join(process.env.LOCA
 const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 
 let context = null;
-const pages = {};
 
 async function browser() {
   if (context) return context;
   context = await chromium.launchPersistentContext(PROFILE_DIR, {
     channel: process.env.BROWSER_CHANNEL || "msedge",
     headless: false,
-    viewport: null,
+    viewport: { width: 1200, height: 800 },
     // look like an ordinary browser window, not an automated one
     ignoreDefaultArgs: ["--enable-automation"],
-    args: ["--start-minimized", "--disable-blink-features=AutomationControlled"],
+    args: ["--window-size=1220,900", "--disable-blink-features=AutomationControlled"],
   });
-  context.on("close", () => { context = null; for (const k of Object.keys(pages)) delete pages[k]; });
+  // Keep the laptop light: skip pictures, videos and web fonts — prices and names are all text.
+  await context.route("**/*", (route) => {
+    const t = route.request().resourceType();
+    return t === "image" || t === "media" || t === "font" ? route.abort() : route.continue();
+  });
+  context.on("close", () => { context = null; });
   return context;
 }
 
-async function storePages(stores) {
-  const ctx = await browser();
-  for (const s of stores) {
-    if (!pages[s] || pages[s].isClosed()) {
-      pages[s] = await ctx.newPage();
-      await pages[s].goto(STORE_INFO[s].home, { waitUntil: "domcontentloaded" }).catch(() => {});
-    }
-  }
-  return pages;
-}
+/** One tab per store, opened when that store's turn comes and closed straight after. */
+const pages = {
+  open: async (store) => {
+    const ctx = await browser();
+    const page = ctx.pages()[0] ?? (await ctx.newPage());
+    await page.goto(STORE_INFO[store].home, { waitUntil: "domcontentloaded", timeout: 45000 }).catch(() => {});
+    return page;
+  },
+  close: async () => {
+    // keep the single tab for the next store; just clear it
+    const page = context?.pages()[0];
+    await page?.goto("about:blank").catch(() => {});
+  },
+};
 
 async function heartbeat() {
   await db.from("settings").update({ runner_seen_at: new Date().toISOString() }).eq("id", 1);
@@ -66,18 +73,19 @@ async function claim() {
 }
 
 async function run(job) {
-  const stores = job.payload.stores ?? STORES;
   log(`job ${job.type} ${job.id}`);
   try {
-    const p = await storePages(stores);
-    const result = job.type === "match" ? await runMatch(db, p, job)
-      : job.type === "price" ? await runPrice(db, p, job)
+    const result = job.type === "match" ? await runMatch(db, pages, job)
+      : job.type === "price" ? await runPrice(db, pages, job)
       : (() => { throw new Error("Basket fill arrives in the next update."); })();
     await db.from("runner_jobs").update({ status: "done", result, finished_at: new Date().toISOString(), progress: "Finished" }).eq("id", job.id);
     log("done", JSON.stringify(result).slice(0, 300));
+    // close the window between jobs so nothing is left running in the background
+    await context?.close().catch(() => {});
   } catch (e) {
     log("failed", e.message);
     await db.from("runner_jobs").update({ status: "failed", error: e.message, finished_at: new Date().toISOString() }).eq("id", job.id);
+    await context?.close().catch(() => {});
   }
 }
 
