@@ -5,8 +5,8 @@ begin;
 insert into public.members (name, sort, portion_factor, kcal_target_office, kcal_target_other, protein_target_office, protein_target_other, skips_on_office_days)
 select * from (values
   ('Kevin', 1, 1.00, 1320, 1720, 100, 130, '{breakfast,lunch}'::text[]),
-  ('Wife',  2, 0.80, 1400, 1400, 90, 90, '{}'::text[]),
-  ('Son',   3, 1.00, null::int, null::int, null::int, null::int, '{}'::text[])
+  ('Lisa',  2, 0.80, 1400, 1400, 90, 90, '{}'::text[]),
+  ('Tom',   3, 1.00, null::int, null::int, null::int, null::int, '{}'::text[])
 ) v where not exists (select 1 from public.members);
 
 -- Ingredients from the 64 kg Tracker
