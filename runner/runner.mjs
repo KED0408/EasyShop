@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { STORE_INFO, addToTrolley } from "./lib/stores.mjs";
 import { runFill, runMatch, runPrice } from "./lib/jobs.mjs";
 
+const VERSION = "1.3 (basket fix, 25 Oct)";
 const POLL_MS = 20_000;
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -102,7 +103,7 @@ async function run(job) {
 }
 
 async function loop() {
-  log(`EasyShop runner started · profile ${PROFILE_DIR}`);
+  log(`EasyShop runner version ${VERSION} started · profile ${PROFILE_DIR}`);
   // jobs left "running" by a crash or shutdown go back in the queue
   await db.from("runner_jobs").update({ status: "queued", progress: "Restarted" }).eq("status", "running");
   for (;;) {
