@@ -22,7 +22,7 @@ const TROLLEY: Record<StoreId, string> = {
   ocado: "https://www.ocado.com/trolley",
 };
 
-const STATUS: Record<string, string> = { partial: "only part added", not_found: "not found", failed: "couldn't add", signin: "sign-in needed" };
+const STATUS: Record<string, string> = { already: "already in your trolley — check the quantity", partial: "only part added", not_found: "not found", failed: "couldn't add", signin: "sign-in needed" };
 
 function FillResult({ r }: { r: FillOut }) {
   return (
