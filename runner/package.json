@@ -10,6 +10,7 @@
     "start": "node runner.mjs",
     "install-startup": "node install-startup.mjs",
     "remove-startup": "node install-startup.mjs --remove",
+    "shortcuts": "powershell -NoProfile -ExecutionPolicy Bypass -File make-shortcuts.ps1",
     "test": "node test/parse.test.mjs"
   },
   "dependencies": {
