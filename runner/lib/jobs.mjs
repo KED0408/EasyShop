@@ -7,6 +7,9 @@ export function _setSearch(fn) { search = fn; }
 
 const CHECK_ONLY = new Set(["garlic & spices"]);
 
+/** First line of an error only (browser errors include a long log). */
+const short = (e) => String(e?.message ?? e).split("\n")[0].replace(/\u001b\[[0-9;]*m/g, "").slice(0, 160);
+
 /** The lines that actually need buying, with their items. */
 export async function loadList(db, listId) {
   const { data: lines, error } = await db.from("list_lines").select("*").eq("list_id", listId);
@@ -96,7 +99,7 @@ export async function runMatch(db, pages, job) {
       try {
         await matchOne(db, page, store, item, ex, cache);
       } catch (e) {
-        errors.push(`${STORE_INFO[store].name}: ${e.message}`);
+        errors.push(`${STORE_INFO[store].name}: ${short(e)}`);
         if (e.blocked) break;
       }
       await progress(store);
@@ -146,7 +149,7 @@ export async function runPrice(db, pages, job) {
           }
         }
       } catch (e) {
-        if (e.message !== "skipped") errors.push(`${STORE_INFO[store].name}: ${e.message}`);
+        if (e.message !== "skipped") errors.push(`${STORE_INFO[store].name}: ${short(e)}`);
         if (e.blocked) blocked = true;
       }
       out.push(rec);

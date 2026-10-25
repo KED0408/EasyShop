@@ -100,6 +100,20 @@ async function waitForResults(page, store) {
   return true;
 }
 
+/** Close survey pop-ups and other dialogs that sit on top of the page (e.g. Tesco's "We would love to hear about your visit"). */
+export async function dismissPopups(page) {
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    for (const d of document.querySelectorAll("dialog[open]")) {
+      const close = d.querySelector('button[aria-label*="lose" i], button[data-testid*="close" i], button[class*="close" i]');
+      if (close) close.click();
+      else try { d.close(); } catch { d.remove(); }
+    }
+    // generic overlay survey widgets
+    for (const el of document.querySelectorAll('[id*="survey" i], [class*="survey-modal" i], [id^="QSIFeedback"], .fsrDialog, #fsrInvite')) el.remove();
+  }).catch(() => {});
+}
+
 /** Tesco blocks search links opened directly, so search the way a person does: type into the box. */
 async function tescoSearch(page, query) {
   let box = page.locator('input[type="search"]').first();
@@ -108,10 +122,11 @@ async function tescoSearch(page, query) {
     await pause(1500);
     box = page.locator('input[type="search"]').first();
   }
-  await box.click({ timeout: 10000 });
-  await box.fill("");
-  await box.type(query, { delay: 40 });
-  await page.keyboard.press("Enter");
+  await dismissPopups(page);
+  // fill + press on the box itself, so a pop-up covering it can't swallow the click
+  await box.fill(query, { timeout: 15000 });
+  await pause(300);
+  await box.press("Enter");
   await page.waitForURL(/search\?query=/, { timeout: 15000 }).catch(() => {});
 }
 
@@ -120,6 +135,7 @@ export async function search(page, store, query) {
   const info = STORE_INFO[store];
   if (store === "tesco") await tescoSearch(page, query);
   else await page.goto(info.searchUrl(query), { waitUntil: "domcontentloaded" });
+  await dismissPopups(page);
   const ok = await waitForResults(page, store);
   const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 3000);
   if (/failed some security checks|access denied|verify you are human|captcha/i.test(body)) {
