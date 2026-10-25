@@ -7,8 +7,10 @@ import os from "node:os";
 import path from "node:path";
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
-import { STORE_INFO } from "./lib/stores.mjs";
-import { runMatch, runPrice } from "./lib/jobs.mjs";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { STORE_INFO, addToTrolley } from "./lib/stores.mjs";
+import { runFill, runMatch, runPrice } from "./lib/jobs.mjs";
 
 const POLL_MS = 20_000;
 const url = process.env.SUPABASE_URL;
@@ -58,6 +60,15 @@ const pages = {
   },
 };
 
+const DEBUG_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "debug");
+/** Keep a copy of a product card the runner couldn't handle, so it can be fixed. */
+async function saveDebug(name, html) {
+  try {
+    fs.mkdirSync(DEBUG_DIR, { recursive: true });
+    fs.writeFileSync(path.join(DEBUG_DIR, `${name}.html`), html);
+  } catch {}
+}
+
 async function heartbeat() {
   await db.from("settings").update({ runner_seen_at: new Date().toISOString() }).eq("id", 1);
 }
@@ -77,7 +88,8 @@ async function run(job) {
   try {
     const result = job.type === "match" ? await runMatch(db, pages, job)
       : job.type === "price" ? await runPrice(db, pages, job)
-      : (() => { throw new Error("Basket fill arrives in the next update."); })();
+      : job.type === "fill" ? await runFill(db, pages, job, { addToTrolley, saveDebug })
+      : (() => { throw new Error(`Unknown job type ${job.type}`); })();
     await db.from("runner_jobs").update({ status: "done", result, finished_at: new Date().toISOString(), progress: "Finished" }).eq("id", job.id);
     log("done", JSON.stringify(result).slice(0, 300));
     // close the window between jobs so nothing is left running in the background

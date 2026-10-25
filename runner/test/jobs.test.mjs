@@ -54,3 +54,12 @@ const r = await runPrice(db, stubPages, { id: "J", payload: { list_id: "L" } });
 console.log("cheapest", r.cheapest);
 for (const [s, t] of Object.entries(r.totals)) console.log(s.padEnd(11), JSON.stringify(t));
 console.log(tables.price_lines.map((l) => `${l.store} ${l.item_id} qty ${l.qty} £${l.line_total}`).join("\n"));
+
+// basket fill with a fake trolley
+const { runFill } = await import("../lib/jobs.mjs");
+const debug = [];
+const fill = await runFill(db, stubPages, { id: "J", payload: { list_id: "L", store: "tesco" } }, {
+  addToTrolley: async (page, store, name, url, qty) => (name.includes("Coca") ? { got: 1, status: "partial", note: "Couldn't find the + button", html: "<div>card</div>" } : { got: qty, status: "added" }),
+  saveDebug: async (n, h) => debug.push(n),
+});
+console.log("fill", JSON.stringify(fill), "debug", debug);

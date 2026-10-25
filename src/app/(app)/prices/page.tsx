@@ -13,6 +13,34 @@ import type { ListLine, Plan, ShoppingList } from "@/lib/types";
 
 type ListOpt = ShoppingList & { plan: Plan };
 
+type FillOut = { store: StoreId; added: number; total: number; problems: { item: string; product: string; want: number; got: number; status: string; note: string | null }[]; not_priced: string[] };
+
+const TROLLEY: Record<StoreId, string> = {
+  tesco: "https://www.tesco.com/groceries/en-GB/trolley",
+  sainsburys: "https://www.sainsburys.co.uk/gol-ui/trolley",
+  morrisons: "https://groceries.morrisons.com/trolley",
+  ocado: "https://www.ocado.com/trolley",
+};
+
+const STATUS: Record<string, string> = { partial: "only part added", not_found: "not found", failed: "couldn't add", signin: "sign-in needed" };
+
+function FillResult({ r }: { r: FillOut }) {
+  return (
+    <div className="stack small" style={{ gap: 4 }}>
+      <b>{r.added} of {r.total} items added to your {STORE_NAME[r.store]} trolley.</b>
+      {r.problems.length > 0 && (
+        <ul className="list">
+          {r.problems.map((p) => (
+            <li key={p.item}><b>{p.item}</b> — {STATUS[p.status] ?? p.status}{p.status === "partial" ? ` (${p.got} of ${p.want})` : ""}. Add it yourself in the {STORE_NAME[r.store]} app.</li>
+          ))}
+        </ul>
+      )}
+      {r.not_priced.length > 0 && <span className="muted">Not available at {STORE_NAME[r.store]}: {r.not_priced.join(", ")}</span>}
+      <a className="btn primary sm" style={{ alignSelf: "flex-start" }} href={TROLLEY[r.store]} target="_blank" rel="noopener noreferrer">Open {STORE_NAME[r.store]} trolley → book &amp; pay</a>
+    </div>
+  );
+}
+
 export default function PricesPage() {
   const { itemMap } = useHousehold();
   const [lists, setLists] = useState<ListOpt[] | null>(null);
@@ -75,11 +103,12 @@ export default function PricesPage() {
     return () => clearInterval(t);
   }, [job, load]);
 
-  async function queue(type: "match" | "price") {
+  async function queue(type: "match" | "price" | "fill", store?: StoreId) {
     if (!listId) return;
+    if (type === "fill" && !window.confirm(`Add this week's list to your ${STORE_NAME[store!]} trolley?\n\nTip: empty that trolley first if it has old items in it. EasyShop won't book a slot or pay.`)) return;
     setError(null);
-    const { data, error } = await supabase().from("runner_jobs")
-      .insert({ type, payload: { list_id: listId, stores: settings?.stores } }).select().single();
+    const payload = type === "fill" ? { list_id: listId, store } : { list_id: listId, stores: settings?.stores };
+    const { data, error } = await supabase().from("runner_jobs").insert({ type, payload }).select().single();
     if (error) return setError(error.message);
     setJob(data as RunnerJob);
   }
@@ -183,11 +212,12 @@ export default function PricesPage() {
         {unmatched > 0 && !busy && <p className="muted small" style={{ margin: 0 }}>{unmatched} items haven&apos;t been looked up yet — Check prices finds them first (it takes longer the first time).</p>}
         {job && (
           <p className="small" style={{ margin: 0 }}>
-            <b>{job.type === "match" ? "Finding products" : "Price check"}:</b>{" "}
+            <b>{job.type === "match" ? "Finding products" : job.type === "fill" ? "Filling the basket" : "Price check"}:</b>{" "}
             {job.status === "queued" ? "waiting for the laptop…" : job.status === "running" ? job.progress ?? "running…" : job.status === "failed" ? <span className="error">failed — {job.error}</span> : `finished ${new Date(job.finished_at ?? job.created_at).toLocaleString("en-GB")}`}
           </p>
         )}
         {job?.result?.errors?.length ? <ul className="small error" style={{ margin: 0 }}>{job.result.errors.map((e) => <li key={e}>{e}</li>)}</ul> : null}
+        {job?.type === "fill" && job.status === "done" && job.result && <FillResult r={job.result as unknown as FillOut} />}
       </section>
 
       {!check && estimate && settings?.weekly_budget && (
@@ -228,7 +258,8 @@ export default function PricesPage() {
               </tbody>
             </table>
             <p className="muted small" style={{ margin: 0 }}>
-              Ranked on the total with missing items estimated at other stores&apos; prices. Tesco uses Clubcard prices; Sainsbury&apos;s Nectar prices are not used. Tap a store for its lines.
+              {best && <button className="btn primary" style={{ marginBottom: 8 }} onClick={() => queue("fill", best)} disabled={!!busy}>Fill {STORE_NAME[best]} basket</button>}
+              <br />Ranked on the total with missing items estimated at other stores&apos; prices. Tesco uses Clubcard prices; Sainsbury&apos;s Nectar prices are not used. Tap a store for its lines.
             </p>
           </section>
 
@@ -269,7 +300,10 @@ export default function PricesPage() {
 
           {open && (
             <section className="card">
-              <h2>{STORE_NAME[open]} lines</h2>
+              <div className="row between">
+                <h2>{STORE_NAME[open]} lines</h2>
+                <button className="btn primary sm" onClick={() => queue("fill", open)} disabled={!!busy}>Fill {STORE_NAME[open]} basket</button>
+              </div>
               <table className="simple">
                 <thead><tr><th>Item</th><th>Product</th><th>Qty</th><th>Total</th></tr></thead>
                 <tbody>

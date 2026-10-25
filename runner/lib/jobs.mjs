@@ -194,3 +194,44 @@ export async function runPrice(db, pages, job) {
   }
   return { check_id: check.id, cheapest, totals, errors: [...new Set(errors)].slice(0, 10) };
 }
+
+/**
+ * Fill one store's trolley with the list, using the latest price check (product + quantity per line).
+ * Never checks out. Saves the markup of anything it couldn't handle to runner/debug for fixing.
+ */
+export async function runFill(db, pages, job, { addToTrolley, saveDebug }) {
+  const store = job.payload.store;
+  if (!store) throw new Error("No store chosen");
+  const { data: checks } = await db.from("price_checks").select("*").eq("list_id", job.payload.list_id).order("created_at", { ascending: false }).limit(1);
+  const check = checks?.[0];
+  if (!check) throw new Error("Run a price check first");
+  const { data: plines } = await db.from("price_lines").select("*").eq("check_id", check.id).eq("store", store);
+  const { lines, itemMap } = await loadList(db, job.payload.list_id);
+  const wanted = new Set(lines.map((l) => l.item_id));
+  const todo = (plines ?? []).filter((p) => wanted.has(p.item_id) && p.url && p.qty > 0);
+  const skipped = (plines ?? []).filter((p) => wanted.has(p.item_id) && (!p.url || p.qty <= 0)).map((p) => itemMap.get(p.item_id)?.name);
+  const page = await pages.open(store);
+  const results = [];
+  let done = 0;
+  for (const p of todo) {
+    const name = itemMap.get(p.item_id)?.name ?? p.product_name;
+    let r;
+    try {
+      r = await addToTrolley(page, store, p.product_name, p.url, p.qty);
+    } catch (e) {
+      r = { got: 0, status: "failed", note: short(e) };
+    }
+    if (r.html) await saveDebug(`${store}-${p.item_id}`, r.html);
+    results.push({ item: name, product: p.product_name, want: p.qty, got: r.got, status: r.status, note: r.note ?? null });
+    done++;
+    await db.from("runner_jobs").update({ progress: `${STORE_INFO[store].name}: ${done}/${todo.length} added` }).eq("id", job.id);
+    if (r.status === "signin") break;
+  }
+  await pages.close(store);
+  const problems = results.filter((r) => r.status !== "added");
+  return {
+    store, added: results.length - problems.length, total: todo.length, problems,
+    not_priced: skipped.filter(Boolean),
+    errors: problems.some((p) => p.status === "signin") ? [`${STORE_INFO[store].name} asked you to sign in — run "npm run setup" on the laptop, sign in, then try again.`] : [],
+  };
+}
