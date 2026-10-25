@@ -110,7 +110,7 @@ export default function PricesPage() {
     const extras = listLines.filter((l) => !l.removed && !l.have_it && l.source !== "meal")
       .map((l) => ({ l, cost: at.find((p) => p.item_id === l.item_id)?.line_total ?? null }))
       .filter((x) => x.cost != null).sort((a, b) => Number(b.cost) - Number(a.cost)).slice(0, 6);
-    const swaps: { name: string; current: string; cheaper: string; save: number }[] = [];
+    const swaps: { name: string; current: string; cheaper: string; save: number; sp: StoreProduct; alt: StoreProduct["candidates"][number] }[] = [];
     for (const p of at) {
       const it = itemMap.get(p.item_id);
       if (!it || it.brand_lock) continue;
@@ -119,11 +119,30 @@ export default function PricesPage() {
       if (!sp || unit == null) continue;
       const alt = sp.candidates.filter((c) => c.inStock && c.url !== p.url && (c.memberPrice ?? c.price) != null && (c.memberPrice ?? c.price)! < unit * 0.85)
         .sort((a, b) => (a.memberPrice ?? a.price)! - (b.memberPrice ?? b.price)!)[0];
-      if (alt) swaps.push({ name: it.name, current: p.product_name ?? "", cheaper: `${alt.name} (${gbp(alt.memberPrice ?? alt.price)})`, save: (unit - (alt.memberPrice ?? alt.price)!) * p.qty });
+      if (alt) swaps.push({ name: it.name, current: p.product_name ?? "", cheaper: `${alt.name} (${gbp(alt.memberPrice ?? alt.price)})`, save: (unit - (alt.memberPrice ?? alt.price)!) * p.qty, sp, alt });
     }
     swaps.sort((a, b) => b.save - a.save);
     return { top, extras, swaps: swaps.slice(0, 5) };
   }, [best, bState, lines, listLines, products, itemMap]);
+
+  const [changed, setChanged] = useState<Set<string>>(new Set());
+
+  /** Use the cheaper product from now on (approved, so it's reused every week). */
+  async function swap(sp: StoreProduct, alt: StoreProduct["candidates"][number]) {
+    const { error } = await supabase().from("store_products").update({
+      status: "approved", product_name: alt.name, url: alt.url, size_text: alt.size, size_qty: null,
+      last_price: alt.memberPrice ?? alt.price, updated_at: new Date().toISOString(),
+    }).eq("id", sp.id);
+    if (error) return setError(error.message);
+    setChanged(new Set(changed).add(sp.id));
+  }
+
+  /** Take an extra off this week's list (it can be put back from the List page). */
+  async function leaveOut(line: ListLine) {
+    const { error } = await supabase().from("list_lines").update({ removed: true }).eq("id", line.id);
+    if (error) return setError(error.message);
+    setChanged(new Set(changed).add(line.id));
+  }
 
   const busy = job && (job.status === "queued" || job.status === "running");
   const online = runnerOnline(settings);
@@ -218,15 +237,33 @@ export default function PricesPage() {
               <h2>Getting back under budget</h2>
               {help.swaps.length > 0 && (<>
                 <h3>Cheaper swaps at {STORE_NAME[best!]}</h3>
-                <ul className="list small">{help.swaps.map((s) => <li key={s.name}><b>{s.name}</b>: {s.cheaper} instead of {s.current} — save about {gbp(s.save)}</li>)}</ul>
+                <ul className="list small">{help.swaps.map((s) => (
+                  <li key={s.name} className="row between" style={{ flexWrap: "nowrap", alignItems: "flex-start" }}>
+                    <span className="grow"><b>{s.name}</b>: {s.cheaper} instead of {s.current} — save about {gbp(s.save)}</span>
+                    {changed.has(s.sp.id) ? <span className="tag">Swapped</span> : <button className="btn sm" onClick={() => swap(s.sp, s.alt)}>Swap</button>}
+                  </li>
+                ))}</ul>
               </>)}
               {help.extras.length > 0 && (<>
                 <h3>Extras that could wait a week</h3>
-                <ul className="list small">{help.extras.map(({ l, cost }) => <li key={l.id}>{itemMap.get(l.item_id)?.name} · {gbp(cost)}</li>)}</ul>
+                <ul className="list small">{help.extras.map(({ l, cost }) => (
+                  <li key={l.id} className="row between" style={{ flexWrap: "nowrap" }}>
+                    <span className="grow">{itemMap.get(l.item_id)?.name} · {gbp(cost)}</span>
+                    {changed.has(l.id) ? <span className="tag">Left out</span> : <button className="btn sm" onClick={() => leaveOut(l)}>Leave out this week</button>}
+                  </li>
+                ))}</ul>
               </>)}
               <h3>Most expensive lines</h3>
               <ul className="list small">{help.top.map((p) => <li key={p.id}>{itemMap.get(p.item_id)?.name} · {p.qty} × {p.product_name} · {gbp(p.line_total)}</li>)}</ul>
-              <Link className="btn sm" href="/list">Edit the list</Link>
+              {changed.size > 0 && (
+                <p className="notice" style={{ margin: 0 }}>
+                  {changed.size} change{changed.size === 1 ? "" : "s"} made. Tap <b>Check prices</b> to update the totals.
+                </p>
+              )}
+              <div className="row">
+                {changed.size > 0 && <button className="btn primary sm" onClick={() => { setChanged(new Set()); queue("price"); }} disabled={!!busy}>Check prices again</button>}
+                <Link className="btn sm" href="/list">Edit the list</Link>
+              </div>
             </section>
           )}
 
