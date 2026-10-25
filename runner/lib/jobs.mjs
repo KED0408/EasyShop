@@ -219,7 +219,8 @@ export async function runFill(db, pages, job, { addToTrolley, saveDebug }) {
     try {
       r = await addToTrolley(page, store, p.product_name, p.url, p.qty);
     } catch (e) {
-      r = { got: 0, status: "failed", note: short(e) };
+      const html = await page?.content?.().catch(() => "");
+      r = { got: 0, status: "failed", note: short(e), html: html ? html.slice(0, 200000) : undefined };
     }
     if (r.html) await saveDebug(`${store}-${p.item_id}`, r.html);
     results.push({ item: name, product: p.product_name, want: p.qty, got: r.got, status: r.status, note: r.note ?? null });

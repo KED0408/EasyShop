@@ -151,37 +151,35 @@ export async function search(page, store, query) {
 
 // ---- basket fill -------------------------------------------------------------------------
 
-/** Mark the product card whose link matches `url` so it can be clicked. Runs in the page. */
-function markCard([store, url]) {
+/** Mark the product card whose link matches `url` (or, failing that, whose name matches) so it can be clicked.
+ *  Links inside the store's basket / trolley panel are ignored — they have + buttons too. Runs in the page. */
+function markCard([store, url, name]) {
   const path = (u) => { try { return new URL(u, location.origin).pathname.replace(/\/$/, ""); } catch { return u; } };
   const want = path(url);
+  const inBasket = (el) => !!el.closest('aside, [role="dialog"], dialog, [class*="basket" i], [class*="trolley" i], [id*="basket" i], [id*="trolley" i], [data-testid*="basket" i], [data-testid*="trolley" i], [data-test*="basket" i], [data-test*="trolley" i], [aria-label*="basket" i], [aria-label*="trolley" i]');
   document.querySelectorAll("[data-easyshop-target]").forEach((e) => e.removeAttribute("data-easyshop-target"));
-  const links = [...document.querySelectorAll("a[href]")].filter((a) => path(a.getAttribute("href")) === want);
-  for (const a of links) {
+  const all = [...document.querySelectorAll("a[href]")].filter((a) => !inBasket(a));
+  const byUrl = all.filter((a) => path(a.getAttribute("href")) === want);
+  const clean = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const byName = name ? all.filter((a) => clean(a.innerText) === clean(name)) : [];
+  for (const a of [...byUrl, ...byName]) {
     let card = null;
     if (store === "sainsburys") card = a.closest('[data-testid="gw-product-card"]');
     else if (store === "morrisons" || store === "ocado") card = a.closest('[data-test^="fop-wrapper"]') || a.closest('[data-test="fop-body"]')?.parentElement;
     else { let e = a; for (let i = 0; i < 10 && e; i++) { if (/£/.test(e.innerText || "") && e.querySelector("button")) { card = e; break; } e = e.parentElement; } }
-    if (card && card.querySelector("button")) { card.setAttribute("data-easyshop-target", "1"); return true; }
+    if (card && !inBasket(card) && card.querySelector("button")) { card.setAttribute("data-easyshop-target", "1"); return true; }
   }
   return false;
 }
 
-/** Quantity currently shown on a card (0 when only an Add button is showing). Runs in the page. */
-function cardQty() {
+/** True when the marked card already shows a quantity (no plain Add button). Runs in the page. */
+function alreadyInTrolley() {
   const c = document.querySelector("[data-easyshop-target]");
-  if (!c) return -1;
-  // a plain "Add" button means none of this product is in the trolley yet
-  if ([...c.querySelectorAll("button")].some((b) => /^add$/i.test(b.innerText.trim()))) return 0;
-  const input = c.querySelector('input[type="number"], input[inputmode="numeric"], input[aria-label*="uantity" i]');
-  const v = input ? Number(input.value) : NaN;
-  if (Number.isFinite(v) && v > 0 && !c.querySelector('[data-testid="gw-add-to-basket"]')) return v;
-  const plus = [...c.querySelectorAll("button")].some((b) => /increase|add one|one more|add another|plus|^\+$/i.test((b.getAttribute("aria-label") || "") + " " + b.innerText.trim()));
-  const qtyText = [...c.querySelectorAll("span, div, p, output")].map((e) => e.childElementCount === 0 ? e.innerText.trim() : "")
-    .find((t) => /^\d{1,2}(\s*in (trolley|basket))?$/i.test(t));
-  if (plus && qtyText) return Number(qtyText.match(/\d+/)[0]);
-  if (Number.isFinite(v) && v > 0 && plus) return v;
-  return 0;
+  if (!c) return false;
+  const buttons = [...c.querySelectorAll("button")];
+  const hasAdd = buttons.some((b) => /^add$/i.test(b.innerText.trim()) || b.getAttribute("data-testid") === "gw-add-to-basket");
+  const hasMinus = buttons.some((b) => /remove 1|decrease|^[−-]$/i.test(((b.getAttribute("aria-label") || "") + " " + b.innerText).trim()));
+  return !hasAdd && hasMinus;
 }
 
 async function clickIn(page, selectors) {
@@ -203,51 +201,46 @@ const ADD = {
   ocado: ['button[data-test="counter-button"]', 'button:has-text("Add")'],
   tesco: ['button:has-text("Add")'],
 };
-const PLUS = [
-  'button[aria-label*="ncrease" i]', 'button[aria-label*="one more" i]', 'button[aria-label*="add another" i]',
-  'button[aria-label*="Add 1" i]', 'button[data-testid*="increment" i]', 'button[data-test*="increment" i]',
-  'button:has-text("+")',
-];
+const PLUS = {
+  tesco: ['button[aria-label^="add 1" i]', 'button[aria-label*="increase" i]', 'button:has-text("+")'],
+  other: ['button[aria-label*="ncrease" i]', 'button[aria-label*="one more" i]', 'button[aria-label*="add another" i]',
+    'button[aria-label^="add 1" i]', 'button[data-testid*="increment" i]', 'button[data-test*="increment" i]', 'button:has-text("+")'],
+};
 
 /**
  * Put `qty` of the product at `url` into the store's trolley.
+ * Clicks Add once and then + exactly (qty − 1) times — it never reads the quantity back to decide whether to
+ * keep going, so it can't run away. If a click doesn't work it stops short and reports it.
  * Returns { got, status, note, html } — html is the card's markup when something didn't work, for fixing.
  */
 export async function addToTrolley(page, store, productName, url, qty) {
+  const want = Math.min(Math.max(1, qty), 12); // never more than 12 of one thing in one go
   await search(page, store, productName);
   await dismissPopups(page);
-  if (!(await page.evaluate(markCard, [store, url]))) return { got: 0, status: "not_found", note: "Product not on the search page" };
+  const mark = () => page.evaluate(markCard, [store, url, productName]);
+  if (!(await mark())) return { got: 0, status: "not_found", note: "Product not on the search page" };
   const html = async () => (await page.locator("[data-easyshop-target]").evaluate((e) => e.outerHTML).catch(() => "")).slice(0, 20000);
-  const already = await page.evaluate(cardQty);
-  if (already >= qty) return { got: already, status: "added", note: "Already in trolley" };
 
-  // Tesco: the card has its own quantity box next to Add
-  if (store === "tesco" && already <= 0) {
-    const box = page.locator('[data-easyshop-target] input[type="number"], [data-easyshop-target] input[inputmode="numeric"]').first();
-    if (await box.count()) {
-      await box.fill(String(qty)).catch(() => {});
-      await clickIn(page, ADD.tesco);
-      await pause(1800);
-      const got = await page.evaluate(cardQty);
-      if (got >= qty) return { got, status: "added" };
-    }
+  if (await page.evaluate(alreadyInTrolley)) return { got: 0, status: "already", note: "Already in your trolley — check the quantity" };
+  let added = false;
+  try { added = await clickIn(page, ADD[store]); } catch { added = false; }
+  if (!added) return { got: 0, status: "failed", note: "Couldn't press Add", html: await html() };
+  await pause(2000);
+  const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 4000);
+  if (/sign in to add|log in to add|enter your postcode|please sign in/i.test(body)) {
+    return { got: 0, status: "signin", note: "Store asked you to sign in" };
   }
-  if (already <= 0) {
-    if (!(await clickIn(page, ADD[store]))) return { got: 0, status: "failed", note: "No Add button", html: await html() };
-    await pause(1800);
-    const body = (await page.locator("body").innerText().catch(() => "")).slice(0, 4000);
-    if (/sign in to add|log in to add|enter your postcode|please sign in/i.test(body) && (await page.evaluate(cardQty)) <= 0) {
-      return { got: 0, status: "signin", note: "Store asked you to sign in" };
-    }
+  let got = 1;
+  while (got < want) {
+    await dismissPopups(page);
+    if (!(await mark())) break; // the card re-renders after each change, so find it again
+    const plus = store === "tesco" ? PLUS.tesco : PLUS.other;
+    let clicked = false;
+    try { clicked = await clickIn(page, plus); } catch { clicked = false; }
+    if (!clicked) break;
+    got++;
+    await pause(1600);
   }
-  for (let i = 0; i < 30; i++) {
-    const got = await page.evaluate(cardQty);
-    if (got >= qty) return { got, status: "added" };
-    if (!(await clickIn(page, PLUS))) {
-      return got > 0 && qty === 1 ? { got, status: "added" } : { got: Math.max(got, 1), status: qty === 1 ? "added" : "partial", note: "Couldn't find the + button", html: await html() };
-    }
-    await pause(1200);
-  }
-  const got = await page.evaluate(cardQty);
-  return { got, status: got >= qty ? "added" : "partial", html: got >= qty ? undefined : await html() };
+  if (got < want) return { got, status: "partial", note: "Couldn't find the + button", html: await html() };
+  return { got, status: qty > 12 ? "partial" : "added", note: qty > 12 ? "Capped at 12 — add the rest yourself" : null };
 }
