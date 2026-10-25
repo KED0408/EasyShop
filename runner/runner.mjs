@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { STORE_INFO, addToTrolley } from "./lib/stores.mjs";
 import { runFill, runMatch, runPrice } from "./lib/jobs.mjs";
 
-const VERSION = "1.3 (basket fix, 25 Oct)";
+const VERSION = "1.4 (one runner only, 25 Oct)";
 const POLL_MS = 20_000;
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -102,9 +102,27 @@ async function run(job) {
   }
 }
 
+// Only ever one runner at a time: two copies would both work on the same trolley.
+const LOCK = path.join(path.dirname(PROFILE_DIR), "runner.lock");
+function takeLock() {
+  try {
+    const pid = Number(fs.readFileSync(LOCK, "utf8"));
+    if (pid && pid !== process.pid) {
+      try { process.kill(pid, 0); console.error(`Another EasyShop runner is already running (process ${pid}). Close it first, or run:  taskkill /F /IM node.exe`); process.exit(1); } catch {}
+    }
+  } catch {}
+  fs.mkdirSync(path.dirname(LOCK), { recursive: true });
+  fs.writeFileSync(LOCK, String(process.pid));
+  const release = () => { try { if (Number(fs.readFileSync(LOCK, "utf8")) === process.pid) fs.unlinkSync(LOCK); } catch {} };
+  process.on("exit", release);
+}
+
 async function loop() {
+  takeLock();
   log(`EasyShop runner version ${VERSION} started · profile ${PROFILE_DIR}`);
-  // jobs left "running" by a crash or shutdown go back in the queue
+  // Jobs cut off by a crash or shutdown: lookups and price checks start again,
+  // but a basket fill is never resumed automatically (the trolley may already be part-filled).
+  await db.from("runner_jobs").update({ status: "failed", error: "Interrupted — check the trolley, then press Fill basket again if needed.", finished_at: new Date().toISOString() }).eq("status", "running").eq("type", "fill");
   await db.from("runner_jobs").update({ status: "queued", progress: "Restarted" }).eq("status", "running");
   for (;;) {
     try {
@@ -119,4 +137,5 @@ async function loop() {
 }
 
 process.on("SIGINT", async () => { await context?.close().catch(() => {}); process.exit(0); });
+process.on("SIGTERM", async () => { await context?.close().catch(() => {}); process.exit(0); });
 loop();

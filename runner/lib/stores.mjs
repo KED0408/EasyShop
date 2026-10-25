@@ -182,6 +182,24 @@ function alreadyInTrolley() {
   return !hasAdd && hasMinus;
 }
 
+/** The quantity number shown on the marked card next to − / + (null if none can be read). Runs in the page. */
+function shownQty() {
+  const c = document.querySelector("[data-easyshop-target]");
+  if (!c) return null;
+  const input = c.querySelector('input[type="number"], input[inputmode="numeric"]');
+  if (input && /^\d+$/.test(input.value) && c.querySelector('button[aria-label*="remove" i], button[aria-label*="decrease" i]')) return Number(input.value);
+  const minus = [...c.querySelectorAll("button")].find((b) => /remove 1|decrease|^[−-]$/i.test(((b.getAttribute("aria-label") || "") + " " + b.innerText).trim()));
+  if (!minus) return null;
+  // the number sits between the − and + buttons
+  let box = minus.parentElement;
+  for (let i = 0; i < 3 && box; i++) {
+    const t = [...box.querySelectorAll("span, div, p, output, label")].map((e) => (e.childElementCount === 0 ? e.innerText.trim() : "")).find((x) => /^\d{1,3}$/.test(x));
+    if (t) return Number(t);
+    box = box.parentElement;
+  }
+  return null;
+}
+
 async function clickIn(page, selectors) {
   const card = page.locator("[data-easyshop-target]");
   for (const sel of selectors) {
@@ -221,6 +239,8 @@ export async function addToTrolley(page, store, productName, url, qty) {
   if (!(await mark())) return { got: 0, status: "not_found", note: "Product not on the search page" };
   const html = async () => (await page.locator("[data-easyshop-target]").evaluate((e) => e.outerHTML).catch(() => "")).slice(0, 20000);
 
+  const before = await page.evaluate(shownQty).catch(() => null);
+  if (before != null && before > 0) return { got: before, status: "already", note: `Already ${before} in your trolley — check the quantity` };
   if (await page.evaluate(alreadyInTrolley)) return { got: 0, status: "already", note: "Already in your trolley — check the quantity" };
   let added = false;
   try { added = await clickIn(page, ADD[store]); } catch { added = false; }
@@ -234,6 +254,9 @@ export async function addToTrolley(page, store, productName, url, qty) {
   while (got < want) {
     await dismissPopups(page);
     if (!(await mark())) break; // the card re-renders after each change, so find it again
+    // safety stop: if the store already shows enough, don't press + again
+    const shown = await page.evaluate(shownQty).catch(() => null);
+    if (shown != null && shown >= want) { got = shown; break; }
     const plus = store === "tesco" ? PLUS.tesco : PLUS.other;
     let clicked = false;
     try { clicked = await clickIn(page, plus); } catch { clicked = false; }
@@ -241,6 +264,8 @@ export async function addToTrolley(page, store, productName, url, qty) {
     got++;
     await pause(1600);
   }
+  const after = await page.evaluate(shownQty).catch(() => null);
+  if (after != null && after > want) return { got: after, status: "over", note: `Shows ${after} — please reduce to ${want}`, html: await html() };
   if (got < want) return { got, status: "partial", note: "Couldn't find the + button", html: await html() };
   return { got, status: qty > 12 ? "partial" : "added", note: qty > 12 ? "Capped at 12 — add the rest yourself" : null };
 }
