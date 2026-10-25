@@ -2,6 +2,7 @@
 // Run once:  npm run install-startup      Remove:  npm run remove-startup
 
 import fs from "node:fs";
+import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,4 +20,6 @@ if (!process.env.APPDATA || !fs.existsSync(startup)) {
   process.exit(1);
 }
 fs.writeFileSync(file, `@echo off\r\ncd /d "${here}"\r\nstart "EasyShop runner" /min cmd /c "node runner.mjs >> runner.log 2>&1"\r\n`);
+// start it now too, so there is no need to restart Windows
+spawn('start "EasyShop runner" /min cmd /c "node runner.mjs >> runner.log 2>&1"', { cwd: here, shell: true, detached: true, stdio: "ignore" }).unref();
 console.log(`Done. The runner will start minimised whenever you sign in to Windows.\n(${file})`);
