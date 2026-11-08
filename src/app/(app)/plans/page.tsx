@@ -68,6 +68,7 @@ export default function PlansPage() {
         const typeByDay = new Map(((srcDays as PlanDay[]) ?? []).map((d) => [shift(d.day), d.day_type]));
         days.forEach((d) => { d.day_type = typeByDay.get(d.day) ?? d.day_type; });
         slots = ((srcSlots as PlanSlot[]) ?? [])
+          .filter((s) => !s.guest_id) // guests belong to the old plan, so their own meals aren't copied
           .map((s) => ({ plan_id: plan.id, day: shift(s.day), slot: s.slot, member_id: s.member_id, meal_id: s.meal_id, portions: s.portions, position: s.position }))
           .filter((s) => s.day >= start && s.day < addDays(start, weeks * 7));
       }

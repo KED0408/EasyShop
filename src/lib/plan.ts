@@ -1,4 +1,4 @@
-import type { DayType, Member, PlanSlot, Slot } from "./types";
+import type { DayType, Member, Person, PlanGuest, PlanSlot, Slot } from "./types";
 
 /** Dates are handled as YYYY-MM-DD strings in UTC to avoid timezone drift. */
 export function addDays(iso: string, n: number): string {
@@ -51,10 +51,24 @@ export function rowsFor(
   dayType: DayType,
   rows: PlanSlot[],
 ): PlanSlot[] {
-  const own = rows.filter((r) => r.slot === slot && r.member_id === member.id);
+  const own = rows.filter((r) => r.slot === slot && ownerOf(r) === member.id);
   if (own.length) return own.filter((r) => r.meal_id);
   if (dayType === "office" && member.skips_on_office_days.includes(slot)) return [];
-  return rows.filter((r) => r.slot === slot && r.member_id === null && r.meal_id);
+  return rows.filter((r) => r.slot === slot && ownerOf(r) === null && r.meal_id);
+}
+
+/** Who a plan row is for: a member's id, a guest group's id, or null for everyone. */
+export function ownerOf(r: Pick<PlanSlot, "member_id" | "guest_id">): string | null {
+  return r.member_id ?? r.guest_id ?? null;
+}
+
+/** A guest group as a person in the planner (no office-day skipping, no targets). */
+export function guestPerson(g: PlanGuest): Person {
+  return {
+    id: g.id, name: g.people > 1 ? `${g.name} (${g.people})` : g.name, sort: 100, portion_factor: Number(g.portion_factor),
+    kcal_target_office: null, kcal_target_other: null, protein_target_office: null, protein_target_other: null,
+    skips_on_office_days: [], user_id: null, guest: g,
+  };
 }
 
 export function targetFor(member: Member, dayType: DayType): { kcal: number | null; protein: number | null } {

@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useHousehold } from "@/lib/useHousehold";
 import { add, mealPerServing, r, scale, ZERO } from "@/lib/nutrition";
-import { addDays, DAY_LONG, defaultDayType, fmtDate, rowsFor, slotLabel, targetFor, weekday } from "@/lib/plan";
+import { addDays, DAY_LONG, defaultDayType, fmtDate, guestPerson, ownerOf, rowsFor, slotLabel, targetFor, weekday } from "@/lib/plan";
 import { guestsOn } from "@/lib/shopping";
-import { SLOTS, type DayType, type Macros, type Meal, type Member, type Plan, type PlanDay, type PlanGuest, type PlanSlot, type Slot } from "@/lib/types";
+import { SLOTS, type DayType, type Macros, type Meal, type Member, type Plan, type PlanDay, type Person, type PlanGuest, type PlanSlot, type Slot } from "@/lib/types";
 
 const DAY_TYPES: { v: DayType; label: string }[] = [
   { v: "office", label: "Office" },
@@ -156,10 +156,14 @@ export default function PlanEditor() {
     run(supabase().from("plan_days").update({ day_type: t }).eq("plan_id", id).eq("day", day));
   }
 
-  async function addRow(day: string, slot: Slot, memberId: string | null, mealId: string | null) {
+  /** People eating on a day: the household plus any guest groups staying. */
+  const peopleOn = (day: string): Person[] => [...members, ...guestsOn(guests, day).map(guestPerson)];
+  const ownerFields = (p: Person | null) => (p ? (p.guest ? { member_id: null, guest_id: p.id } : { member_id: p.id, guest_id: null }) : { member_id: null, guest_id: null });
+
+  async function addRow(day: string, slot: Slot, person: Person | null, mealId: string | null) {
     const position = slots.filter((s) => s.day === day && s.slot === slot).length;
     const { data, error } = await supabase().from("plan_slots")
-      .insert({ plan_id: id, day, slot, member_id: memberId, meal_id: mealId, portions: 1, position }).select().single();
+      .insert({ plan_id: id, day, slot, ...ownerFields(person), meal_id: mealId, portions: 1, position }).select().single();
     if (error) return setError(error.message);
     setSlots((cur) => [...cur, data as PlanSlot]);
   }
@@ -175,9 +179,9 @@ export default function PlanEditor() {
   }
 
   async function split(day: string, slot: Slot) {
-    const everyone = slots.filter((s) => s.day === day && s.slot === slot && s.member_id === null);
-    const rows = members.map((m) => ({
-      plan_id: id, day, slot, member_id: m.id,
+    const everyone = slots.filter((s) => s.day === day && s.slot === slot && ownerOf(s) === null);
+    const rows = peopleOn(day).map((m) => ({
+      plan_id: id, day, slot, ...ownerFields(m),
       meal_id: rowsFor(m, slot, dayType(day), everyone)[0]?.meal_id ?? null, portions: 1, position: 0,
     }));
     const { data, error } = await supabase().from("plan_slots").insert(rows).select();
@@ -186,7 +190,7 @@ export default function PlanEditor() {
   }
 
   async function join(day: string, slot: Slot) {
-    const own = slots.filter((s) => s.day === day && s.slot === slot && s.member_id !== null);
+    const own = slots.filter((s) => s.day === day && s.slot === slot && ownerOf(s) !== null);
     setSlots(slots.filter((s) => !own.includes(s)));
     run(supabase().from("plan_slots").delete().in("id", own.map((s) => s.id)));
   }
@@ -272,14 +276,14 @@ export default function PlanEditor() {
             </div>
             {guestsOn(guests, day).length > 0 && (
               <span className="tag" style={{ alignSelf: "flex-start" }}>
-                Staying: {guestsOn(guests, day).map((g) => `${g.name}${g.people > 1 ? ` (${g.people})` : ""}`).join(", ")} — eating the meals for everyone
+                Staying: {guestsOn(guests, day).map((g) => `${g.name}${g.people > 1 ? ` (${g.people})` : ""}`).join(", ")} — they eat the meals for everyone unless a meal is set to different per person
               </span>
             )}
 
             {SLOTS.map((slot) => {
               const rows = dayRows.filter((r) => r.slot === slot);
-              const everyone = rows.filter((r) => r.member_id === null);
-              const isSplit = rows.some((r) => r.member_id !== null);
+              const everyone = rows.filter((r) => ownerOf(r) === null);
+              const isSplit = rows.some((r) => ownerOf(r) !== null);
               const skipped = members.filter((m) => t === "office" && m.skips_on_office_days.includes(slot)).map((m) => m.name);
               return (
                 <div key={slot} className="slot">
@@ -307,11 +311,11 @@ export default function PlanEditor() {
                     </>
                   )}
 
-                  {isSplit && members.map((m) => {
-                    const own = rows.filter((r) => r.member_id === m.id);
+                  {isSplit && peopleOn(day).map((m) => {
+                    const own = rows.filter((r) => ownerOf(r) === m.id);
                     return (
                       <div key={m.id} className="stack" style={{ gap: 4 }}>
-                        <span className="small"><b>{m.name}</b></span>
+                        <span className="small"><b>{m.name}</b>{m.guest ? " · guest" : ""}</span>
                         {own.map((row) => (
                           <div key={row.id} className="row" style={{ flexWrap: "nowrap" }}>
                             <MealSelect allowNone label={`${slotLabel(slot, t)} for ${m.name}`} value={row.meal_id} slot={slot} meals={meals}
@@ -320,11 +324,16 @@ export default function PlanEditor() {
                           </div>
                         ))}
                         {own.length === 0 && (
-                          <MealSelect allowNone label={`${slotLabel(slot, t)} for ${m.name}`} value={null} slot={slot} meals={meals}
-                            onChange={(v) => addRow(day, slot, m.id, v)} />
+                          <>
+                            <MealSelect allowNone label={`${slotLabel(slot, t)} for ${m.name}`} value={null} slot={slot} meals={meals}
+                              onChange={(v) => addRow(day, slot, m, v)} />
+                            {rowsFor(m, slot, t, rows).length > 0 && (
+                              <span className="muted small">For now: {rowsFor(m, slot, t, rows).map((x) => mealMap.get(x.meal_id!)?.name).filter(Boolean).join(", ")} (the meal for everyone) — pick something to change it</span>
+                            )}
+                          </>
                         )}
                         {slot === "snack" && own.length > 0 && (
-                          <button className="btn ghost sm" style={{ alignSelf: "flex-start" }} onClick={() => addRow(day, slot, m.id, null)}>+ another snack</button>
+                          <button className="btn ghost sm" style={{ alignSelf: "flex-start" }} onClick={() => addRow(day, slot, m, null)}>+ another snack</button>
                         )}
                       </div>
                     );
@@ -334,14 +343,14 @@ export default function PlanEditor() {
             })}
 
             <div className="totals">
-              {members.map((m) => {
+              {peopleOn(day).map((m) => {
                 const tot = dayTotals(m, day);
                 const target = targetFor(m, t);
                 const over = target.kcal != null && tot.kcal > target.kcal;
                 return (
                   <div key={m.id} className={`total${over ? " over" : ""}`}>
                     <b>{m.name}</b>
-                    <span className="num">{r(tot.kcal)}{target.kcal != null ? ` / ${target.kcal}` : ""} kcal</span>
+                    <span className="num">{r(tot.kcal)}{target.kcal != null ? ` / ${target.kcal}` : ""} kcal{m.guest && m.guest.people > 1 ? " each" : ""}</span>
                     {target.kcal != null && <div className="bar"><i style={{ width: `${Math.min(100, (tot.kcal / target.kcal) * 100)}%` }} /></div>}
                     <span className="num muted">P {r(tot.protein)}{target.protein != null ? `/${target.protein}` : ""} · C {r(tot.carbs)} · F {r(tot.fat)} g</span>
                     {over && <span className="small">Over by {r(tot.kcal - target.kcal!)} kcal</span>}

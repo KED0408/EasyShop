@@ -1,4 +1,4 @@
-import { addDays, rowsFor } from "./plan";
+import { addDays, guestPerson, rowsFor } from "./plan";
 import type { Item, ListLine, Meal, Member, PantryRow, PlanDay, PlanGuest, PlanSlot } from "./types";
 import { SLOTS } from "./types";
 
@@ -42,10 +42,12 @@ export function weekNeeds(
         for (const row of rowsFor(member, slot, dayType, rows)) addMeal(row.meal_id, member.portion_factor * row.portions);
       }
     }
-    const here = guestsOn(guests, day);
-    if (here.length) {
-      const portions = here.reduce((a, g) => a + g.people * Number(g.portion_factor), 0);
-      for (const row of rows.filter((r) => r.member_id === null && r.meal_id)) addMeal(row.meal_id, portions * row.portions);
+    // guests: their own meal where a slot is "different per person", otherwise the meal for everyone
+    for (const g of guestsOn(guests, day)) {
+      const p = guestPerson(g);
+      for (const slot of SLOTS) {
+        for (const row of rowsFor(p, slot, dayType, rows)) addMeal(row.meal_id, g.people * Number(g.portion_factor) * row.portions);
+      }
     }
   }
   return need;

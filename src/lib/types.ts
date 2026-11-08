@@ -119,12 +119,18 @@ export interface PlanGuest {
   to_day: string;
 }
 
+/** A household member or a guest group, as the planner treats them. */
+export interface Person extends Member {
+  guest?: PlanGuest;   // set for a guest group; portion_factor is per person
+}
+
 export interface PlanSlot {
   id: string;
   plan_id: string;
   day: string;
   slot: Slot;
   member_id: string | null;
+  guest_id?: string | null;   // set when the row is for a guest group
   meal_id: string | null;
   portions: number;
   position: number;
