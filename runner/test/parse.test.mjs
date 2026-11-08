@@ -26,3 +26,9 @@ const tescoCoke=[{name:"Coca-Cola Zero Sugar Zero Caffeine Soft Drink Bottle 2L"
 eq(chooseBest(cokeC,tescoCoke)?.name,"Coca-Cola Zero Sugar 8 x 330ml","coke usual pack, not vanilla");
 const ocadoY=[{name:"Tims Dairy Greek Style Vanilla Yoghurt",price:2.5,size:"450g"},{name:"The Estate Dairy 10% Greek Style Natural Yoghurt",price:3.85,size:"1kg"},{name:"The Estate Dairy Greek Style Yoghurt with Blueberry Compote",price:1.4,size:"125g"},{name:"Ocado Greek Style Natural Yogurt",price:2.2,size:"1kg"}];
 eq(chooseBest(item,ocadoY)?.name,"Ocado Greek Style Natural Yogurt","ocado plain yogurt");
+const milk={name:"Skimmed milk",unit:"ml",pack_size:1136};
+eq(qtyFor({source:"added",need:2272,from_pantry:0,packs:2},milk,1136),2,"4 pints as 2-pint packs");
+eq(qtyFor({source:"added",need:2272,from_pantry:0,packs:2},milk,2272),1,"4 pints as one 4-pint pack");
+eq(qtyFor({source:"added",need:null,from_pantry:0,packs:3},milk,null),3,"no amount: packs");
+eq(qtyFor({source:"regular",need:3,from_pantry:0,packs:3},{name:"Toilet tissue",unit:"each",measure:"pack"},9),3,"3 packs stay 3 packs");
+eq(qtyFor({source:"added",need:18,from_pantry:0,packs:18},{name:"Toilet roll",unit:"each",measure:"roll"},9),2,"18 rolls = 2 × 9-roll packs");

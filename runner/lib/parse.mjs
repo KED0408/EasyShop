@@ -144,7 +144,10 @@ export function chooseBest(item, candidates) {
 
 /** How many of a store's packs to buy for a list line. */
 export function qtyFor(line, item, sizeQty) {
-  if (line.source === "meal" && sizeQty && line.need != null) {
+  // items counted in packs: the list already says how many packs
+  if (item?.measure === "pack") return Math.max(0, Number(line.packs) || 0);
+  // any line with an amount (meal needs, or "4 pints" set on the list) is turned into this store's packs
+  if (sizeQty && line.need != null) {
     const remaining = Number(line.need) - Number(line.from_pantry || 0);
     if (remaining <= 0) return 0;
     return Math.max(1, Math.ceil(remaining / sizeQty - 1e-9));

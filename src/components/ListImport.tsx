@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AISLE_ORDER, matchItem, parseLines, suggestCategory, tidyName } from "@/lib/shopping";
 import type { Item, LineSource } from "@/lib/types";
+import { defaultLine } from "@/lib/measures";
 
 type Row = { text: string; qty: number; itemId: string | "new" | "skip"; category: string };
 
@@ -41,6 +42,7 @@ export default function ListImport({ items, listId, source, onDone, onClose }: {
     setError(null);
     const db = supabase();
     const want = new Map<string, number>();
+    const byId = new Map(items.map((i) => [i.id, i]));
     for (const r of rows) {
       if (r.itemId === "skip") continue;
       let id = r.itemId;
@@ -50,17 +52,18 @@ export default function ListImport({ items, listId, source, onDone, onClose }: {
         if (existing) id = existing.id;
         else {
           const { data, error } = await db.from("items")
-            .insert({ name, category: r.category, unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1 })
+            .insert({ name, category: r.category, unit: "each", measure: "pack", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1, usual_qty: 1 })
             .select().single();
           if (error) { setBusy(false); return setError(error.message); }
           id = (data as Item).id;
+          byId.set(id, data as Item);
         }
       }
       want.set(id, (want.get(id) ?? 0) + r.qty);
     }
     if (want.size) {
       const { error } = await db.from("list_lines").upsert(
-        [...want.entries()].map(([item_id, packs]) => ({ list_id: listId, item_id, source, packs, removed: false })),
+        [...want.entries()].map(([item_id, packs]) => ({ list_id: listId, item_id, source, ...defaultLine(byId.get(item_id)!, packs > 1 ? packs : undefined), removed: false })),
         { onConflict: "list_id,item_id,source" },
       );
       if (error) { setBusy(false); return setError(error.message); }

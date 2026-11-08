@@ -31,6 +31,8 @@ export interface Item {
   is_cupboard: boolean;
   buy_frequency: "weekly" | "fortnightly" | "as_needed" | null;
   usual_pack: string | null;
+  usual_qty: number | null;   // usual amount to buy, in the item's measure
+  measure: string | null;     // pint, litre, kg, g, can, pack… (see lib/measures)
   pack_size: number | null;
   aliases: string[];
 }

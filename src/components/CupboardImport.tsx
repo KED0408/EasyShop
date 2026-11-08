@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { AISLE_ORDER, matchItem, parseLines, suggestCategory, tidyName } from "@/lib/shopping";
 import type { Item } from "@/lib/types";
+import { MEASURES } from "@/lib/measures";
 
 type Freq = NonNullable<Item["buy_frequency"]>;
 type Row = {
@@ -11,6 +12,7 @@ type Row = {
   category: string;
   frequency: Freq;
   brand: string;
+  measure: string;
   existing: Item | null;   // already in the cupboard / item list
   action: "add" | "skip";
 };
@@ -46,6 +48,7 @@ export default function CupboardImport({ items, onDone, onClose }: { items: Item
         category: l.category ?? (close && sure ? close.category : suggestCategory(name, items)),
         frequency: l.frequency ?? defaultFreq,
         brand: "",
+        measure: /\bmilk\b/i.test(name) && !/chocolate|coconut|almond|oat|soya/i.test(name) ? "pint" : "pack",
         existing: sure ? close : null,
         // something already in the cupboard is skipped by default; a near-miss is shown but still added
         action: sure && close?.is_cupboard ? "skip" : "add",
@@ -68,10 +71,13 @@ export default function CupboardImport({ items, onDone, onClose }: { items: Item
     let added = 0, updated = 0;
     const fresh = rows.filter((r) => r.action === "add" && !r.existing);
     if (fresh.length) {
-      const { error } = await db.from("items").insert(fresh.map((r) => ({
-        name: r.name, category: r.category, unit: "each", is_cupboard: true, buy_frequency: r.frequency,
-        pack_size: 1, brand_lock: r.brand.trim() || null,
-      })));
+      const { error } = await db.from("items").insert(fresh.map((r) => {
+        const m = MEASURES.find((x) => x.id === r.measure) ?? MEASURES[0];
+        return {
+          name: r.name, category: r.category, unit: m.base, measure: m.id, is_cupboard: true, buy_frequency: r.frequency,
+          pack_size: m.factor, usual_qty: 1, brand_lock: r.brand.trim() || null,
+        };
+      }));
       if (error) { setBusy(false); return setError(error.message.includes("duplicate") ? "Two lines have the same name — remove one and try again." : error.message); }
       added = fresh.length;
     }
@@ -144,6 +150,11 @@ export default function CupboardImport({ items, onDone, onClose }: { items: Item
                     <select aria-label={`How often for ${r.name}`} value={r.frequency} style={{ width: "auto" }} onChange={(e) => set(i, { frequency: e.target.value as Freq })}>
                       {FREQ.map((f) => <option key={f.v} value={f.v}>{f.label}</option>)}
                     </select>
+                    {!r.existing && (
+                      <select aria-label={`Measured in for ${r.name}`} value={r.measure} style={{ width: "auto" }} onChange={(e) => set(i, { measure: e.target.value })}>
+                        {MEASURES.map((x) => <option key={x.id} value={x.id}>{x.id === "each" ? "each" : x.many}</option>)}
+                      </select>
+                    )}
                     <input type="text" placeholder="Brand (optional)" value={r.brand} aria-label={`Brand for ${r.name}`} style={{ width: 150 }} onChange={(e) => set(i, { brand: e.target.value })} />
                   </div>
                 )}

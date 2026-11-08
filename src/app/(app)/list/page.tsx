@@ -5,12 +5,22 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ListImport from "@/components/ListImport";
 import { supabase } from "@/lib/supabase/client";
 import { useHousehold } from "@/lib/useHousehold";
+import { defaultLine, fmtMeasure, lineAmount, measureOf, packsFor } from "@/lib/measures";
 import { addDays, fmtDate, weekday } from "@/lib/plan";
 import {
   afterPurchase, AISLE_ORDER, CHECK_ONLY, deductPantry, fmtAmount, fmtPack, mealLines,
   pantryAvailable, regularsFor, suggestCategory, tidyName, weekNeeds,
 } from "@/lib/shopping";
 import type { Item, ListLine, PantryRow, Plan, PlanDay, PlanSlot, ShoppingList } from "@/lib/types";
+
+/** "4 pints · 2 × 2-pint packs" style description for a non-meal line. */
+function packText(it: Item, l: ListLine): string {
+  const m = measureOf(it);
+  const size = (Number(it.pack_size) || m.factor) / m.factor;
+  if (m.id === "pack" || m.id === "each") return it.usual_pack ? `${it.usual_pack}` : "";
+  const packs = packsFor(it, lineAmount(it, l) * m.factor);
+  return `${packs} × ${fmtMeasure(size, m)} pack${packs === 1 ? "" : "s"}`;
+}
 
 const SOURCE_LABEL: Record<ListLine["source"], string> = { meal: "meals", regular: "regular", alexa: "Alexa", added: "added" };
 const CACHE = "easyshop-list-cache";
@@ -137,7 +147,7 @@ export default function ListPage() {
       const stale = current.filter((x) => x.source === "meal" && !planned.some((pl) => pl.item_id === x.item_id)).map((x) => x.id);
       const regs = regularsFor(items, sel.week)
         .filter((it) => !current.some((x) => x.item_id === it.id && x.source === "regular"))
-        .map((it) => ({ list_id: sl.id, item_id: it.id, source: "regular" as const, packs: 1 }));
+        .map((it) => ({ list_id: sl.id, item_id: it.id, source: "regular" as const, ...defaultLine(it) }));
       const ops = [];
       if (upserts.length) ops.push(db.from("list_lines").upsert(upserts, { onConflict: "list_id,item_id,source" }));
       if (stale.length) ops.push(db.from("list_lines").delete().in("id", stale));
@@ -162,6 +172,23 @@ export default function ListPage() {
     if (list) try { localStorage.setItem(CACHE, JSON.stringify({ list, lines })); } catch {}
   }, [list, lines]);
 
+  /** − / + on a line: meal lines change packs; everything else changes the amount in the item's own measure. */
+  function step(line: ListLine, it: Item, dir: 1 | -1) {
+    if (line.source === "meal") return patch(line, { packs: Math.max(1, line.packs + dir) });
+    const m = measureOf(it);
+    const amount = Math.max(m.step, Math.round((lineAmount(it, line) + dir * m.step) * 100) / 100);
+    const need = amount * m.factor;
+    patch(line, { need, packs: packsFor(it, need) });
+  }
+
+  function setAmount(line: ListLine, it: Item, value: string) {
+    const m = measureOf(it);
+    const amount = Number(value);
+    if (!(amount > 0)) return;
+    const need = amount * m.factor;
+    patch(line, { need, packs: packsFor(it, need) });
+  }
+
   async function createList() {
     const db = supabase();
     const name = newName.trim() || defaultName();
@@ -169,7 +196,7 @@ export default function ListPage() {
     if (error) return setError(error.message);
     const l = data as ShoppingList;
     if (withRegulars) {
-      const regs = regularsFor(items, 0).map((it) => ({ list_id: l.id, item_id: it.id, source: "regular" as const, packs: 1 }));
+      const regs = regularsFor(items, 0).map((it) => ({ list_id: l.id, item_id: it.id, source: "regular" as const, ...defaultLine(it) }));
       if (regs.length) await db.from("list_lines").insert(regs);
     }
     setOwn([l, ...own]);
@@ -218,7 +245,7 @@ export default function ListPage() {
     let item: Item | undefined = items.find((i) => i.name.toLowerCase() === name.toLowerCase());
     if (!item) {
       const ins = await db.from("items").insert({
-        name: tidyName(name), category: suggestCategory(name, items), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1,
+        name: tidyName(name), category: suggestCategory(name, items), unit: "each", measure: "pack", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1, usual_qty: 1,
       }).select().single();
       if (ins.error) return setError(ins.error.message);
       item = ins.data as Item;
@@ -226,7 +253,7 @@ export default function ListPage() {
       setMessage(`${item.name} saved to the store cupboard.`);
     }
     const { error } = await db.from("list_lines").upsert(
-      { list_id: list.id, item_id: item.id, source: "added", packs: 1, removed: false },
+      { list_id: list.id, item_id: item.id, source: "added", ...defaultLine(item), removed: false },
       { onConflict: "list_id,item_id,source" },
     );
     if (error) return setError(error.message);
@@ -400,17 +427,28 @@ export default function ListPage() {
                             <>Meals need {fmtAmount(it, Number(l.need ?? 0))}
                               {l.from_pantry > 0 && <> · {fmtAmount(it, Number(l.from_pantry))} from leftovers</>}
                               {covered ? " · covered by leftovers" : it.pack_size ? ` · ${fmtPack(it)}` : ""}</>
-                          ) : (<>{fmtPack(it) || "1 pack"} · {SOURCE_LABEL[l.source]}</>)}
+                          ) : (<>{packText(it, l)} · {SOURCE_LABEL[l.source]}</>)}
                       </div>
                     </div>
                     {!checkOnly && !covered && (
                       <div className="row" style={{ flexWrap: "nowrap", gap: 4 }}>
                         {mode === "check" && list?.status === "open" && (
-                          <button className="btn ghost sm" aria-label={`One fewer ${it.name}`} onClick={() => patch(l, { packs: Math.max(1, l.packs - 1) })}>−</button>
+                          <button className="btn ghost sm" aria-label={`Less ${it.name}`} onClick={() => step(l, it, -1)}>−</button>
                         )}
-                        <span className="num" style={{ minWidth: 28, textAlign: "center" }}>× {l.packs}</span>
+                        {l.source === "meal" ? (
+                          <span className="num" style={{ minWidth: 28, textAlign: "center" }}>× {l.packs}</span>
+                        ) : mode === "check" && list?.status === "open" ? (
+                          <span className="row" style={{ flexWrap: "nowrap", gap: 4 }}>
+                            <input type="number" inputMode="decimal" min={measureOf(it).step} step={measureOf(it).step} aria-label={`Amount of ${it.name}`}
+                              key={`${l.id}-${l.need}`} defaultValue={lineAmount(it, l)} style={{ width: 70, minHeight: 34, padding: "4px 6px" }}
+                              onBlur={(e) => setAmount(l, it, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                            <span className="small muted">{measureOf(it).many}</span>
+                          </span>
+                        ) : (
+                          <span className="num" style={{ textAlign: "right" }}>{fmtMeasure(lineAmount(it, l), measureOf(it))}</span>
+                        )}
                         {mode === "check" && list?.status === "open" && (
-                          <button className="btn ghost sm" aria-label={`One more ${it.name}`} onClick={() => patch(l, { packs: l.packs + 1 })}>+</button>
+                          <button className="btn ghost sm" aria-label={`More ${it.name}`} onClick={() => step(l, it, 1)}>+</button>
                         )}
                       </div>
                     )}

@@ -6,6 +6,7 @@ import { useHousehold } from "@/lib/useHousehold";
 import CupboardImport from "@/components/CupboardImport";
 import { AISLE_ORDER, suggestCategory, tidyName } from "@/lib/shopping";
 import type { Item } from "@/lib/types";
+import { fmtMeasure, measureOf, measuresFor } from "@/lib/measures";
 
 const FREQ: { v: NonNullable<Item["buy_frequency"]>; label: string }[] = [
   { v: "weekly", label: "Every week" },
@@ -13,7 +14,7 @@ const FREQ: { v: NonNullable<Item["buy_frequency"]>; label: string }[] = [
   { v: "as_needed", label: "As needed" },
 ];
 
-function CupboardRow({ item, onSaved }: { item: Item; onSaved: () => void }) {
+function CupboardRow({ item, usedInMeals, onSaved }: { item: Item; usedInMeals: boolean; onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [it, setIt] = useState(item);
   const [err, setErr] = useState<string | null>(null);
@@ -34,7 +35,7 @@ function CupboardRow({ item, onSaved }: { item: Item; onSaved: () => void }) {
           <b>{it.name}</b>
           <br />
           <span className="muted small">
-            {it.usual_pack ?? ""}{it.brand_lock ? ` · ${it.brand_lock} only` : " · any brand"}
+            {usualText(it)}{it.brand_lock ? ` · ${it.brand_lock} only` : " · any brand"}
           </span>
         </button>
         <select aria-label={`How often for ${it.name}`} value={it.buy_frequency ?? "as_needed"} style={{ width: "auto" }}
@@ -52,6 +53,7 @@ function CupboardRow({ item, onSaved }: { item: Item; onSaved: () => void }) {
               <input type="text" defaultValue={it.brand_lock ?? ""} placeholder="Any brand" onBlur={(e) => save({ brand_lock: e.target.value.trim() || null })} />
             </label>
           </div>
+          <MeasureEditor it={it} usedInMeals={usedInMeals} save={save} />
           <label className="field">Aisle
             <select value={it.category} onChange={(e) => save({ category: e.target.value })}>
               {AISLE_ORDER.map((c) => <option key={c}>{c}</option>)}
@@ -67,8 +69,59 @@ function CupboardRow({ item, onSaved }: { item: Item; onSaved: () => void }) {
   );
 }
 
+/** "usually 4 pints (2 × 2-pint packs)" or the pack description. */
+function usualText(it: Item): string {
+  const m = measureOf(it);
+  if (m.id === "pack" || m.id === "each") return it.usual_pack ?? "";
+  const usual = Number(it.usual_qty) || (Number(it.pack_size) || m.factor) / m.factor;
+  const size = (Number(it.pack_size) || m.factor) / m.factor;
+  return `usually ${fmtMeasure(usual, m)} · ${fmtMeasure(size, m)} pack${it.usual_pack ? ` (${it.usual_pack})` : ""}`;
+}
+
+/** Choose how an item is measured, how big one pack is, and how much you usually buy. */
+function MeasureEditor({ it, usedInMeals, save }: { it: Item; usedInMeals: boolean; save: (p: Partial<Item>) => void }) {
+  const m = measureOf(it);
+  const packIn = (Number(it.pack_size) || m.factor) / m.factor;
+  const usual = Number(it.usual_qty) || packIn;
+  const options = measuresFor(it.unit, usedInMeals);
+  const counted = m.id === "pack" || m.id === "each";
+
+  function changeMeasure(id: string) {
+    const next = options.find((x) => x.id === id)!;
+    // keep the same pack/usual numbers, re-expressed in the new measure (e.g. 2 pints → 2 litres if you switch)
+    save({ measure: next.id, unit: next.base, pack_size: packIn * next.factor, usual_qty: usual });
+  }
+
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      <div className="row">
+        <label className="field grow">Measured in
+          <select value={m.id} onChange={(e) => changeMeasure(e.target.value)}>
+            {options.map((x) => <option key={x.id} value={x.id}>{x.id === "each" ? "each (count)" : x.many}</option>)}
+          </select>
+        </label>
+        {!counted && (
+          <label className="field grow">One pack is ({m.many})
+            <input type="number" inputMode="decimal" min={0} step={m.step} defaultValue={packIn} key={`p-${m.id}-${packIn}`}
+              onBlur={(e) => { const v = Number(e.target.value); if (v > 0 && v !== packIn) save({ pack_size: v * m.factor }); }} />
+          </label>
+        )}
+        <label className="field grow">Usually buy ({counted ? "packs" : m.many})
+          <input type="number" inputMode="decimal" min={0} step={counted ? 1 : m.step} defaultValue={usual} key={`u-${m.id}-${usual}`}
+            onBlur={(e) => { const v = Number(e.target.value); if (v > 0 && v !== usual) save({ usual_qty: v }); }} />
+        </label>
+      </div>
+      <span className="hint small muted">
+        {usedInMeals ? `Used in meals, so it stays in ${m.base === "each" ? "counts" : m.base}. ` : ""}
+        On the list, − and + change the amount in {counted ? "packs" : m.many}{counted ? "" : "; the app works out how many packs to buy"}.
+      </span>
+    </div>
+  );
+}
+
 export default function CupboardPage() {
-  const { items, loading, error, reload } = useHousehold();
+  const { items, meals, loading, error, reload } = useHousehold();
+  const inMeals = new Set(meals.flatMap((m) => (m.meal_components ?? []).map((c) => c.item_id)));
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<string>("all");
   const [onlyRegular, setOnlyRegular] = useState(false);
@@ -89,7 +142,7 @@ export default function CupboardPage() {
     const existing = items.find((i) => i.name.toLowerCase() === name.toLowerCase());
     const res = existing
       ? await supabase().from("items").update({ is_cupboard: true, buy_frequency: existing.buy_frequency ?? "as_needed" }).eq("id", existing.id)
-      : await supabase().from("items").insert({ name, category: suggestCategory(name, items), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1 });
+      : await supabase().from("items").insert({ name, category: suggestCategory(name, items), unit: "each", measure: "pack", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1, usual_qty: 1 });
     if (res.error) return setMsg(res.error.message);
     setNewName("");
     setMsg(`${name} added to the store cupboard.`);
@@ -133,7 +186,7 @@ export default function CupboardPage() {
       {loading ? <p className="muted">Loading…</p> : byCat.map(([c, list]) => (
         <section key={c} className="card tight">
           <h3>{c}</h3>
-          <ul className="list">{list.map((i) => <CupboardRow key={i.id} item={i} onSaved={reload} />)}</ul>
+          <ul className="list">{list.map((i) => <CupboardRow key={i.id} item={i} usedInMeals={inMeals.has(i.id)} onSaved={reload} />)}</ul>
         </section>
       ))}
     </main>
