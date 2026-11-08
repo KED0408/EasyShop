@@ -109,6 +109,16 @@ export interface PlanDay {
   day_type: DayType;
 }
 
+export interface PlanGuest {
+  id: string;
+  plan_id: string;
+  name: string;
+  people: number;
+  portion_factor: number;
+  from_day: string;
+  to_day: string;
+}
+
 export interface PlanSlot {
   id: string;
   plan_id: string;

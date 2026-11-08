@@ -9,6 +9,8 @@ import type { Meal, Plan, PlanDay, PlanSlot, Slot } from "@/lib/types";
 import template from "../../../../data/tracker-template.json";
 
 type Start = "blank" | "tracker" | `copy:${string}`;
+
+const defaultName = (start: string, weeks: number) => (weeks === 1 ? `Week of ${fmtDate(start)}` : `${weeks} weeks from ${fmtDate(start)}`);
 const TEMPLATE = template as Record<"A" | "B", Record<string, { slot: Slot; meal: string }[]>>;
 
 export default function PlansPage() {
@@ -17,6 +19,7 @@ export default function PlansPage() {
   const [start, setStart] = useState(nextMonday());
   const [name, setName] = useState("");
   const [from, setFrom] = useState<Start>("tracker");
+  const [weeks, setWeeks] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,11 +33,11 @@ export default function PlansPage() {
     setBusy(true);
     setError(null);
     const db = supabase();
-    const planName = name.trim() || `3 weeks from ${fmtDate(start)}`;
-    const ins = await db.from("plans").insert({ name: planName, start_date: start, weeks: 3, status: "draft" }).select().single();
+    const planName = name.trim() || defaultName(start, weeks);
+    const ins = await db.from("plans").insert({ name: planName, start_date: start, weeks, status: "draft" }).select().single();
     if (ins.error) { setBusy(false); return setError(ins.error.message); }
     const plan = ins.data as Plan;
-    const days: PlanDay[] = Array.from({ length: 21 }, (_, i) => {
+    const days: PlanDay[] = Array.from({ length: weeks * 7 }, (_, i) => {
       const day = addDays(start, i);
       return { plan_id: plan.id, day, day_type: defaultDayType(day) };
     });
@@ -66,7 +69,7 @@ export default function PlansPage() {
         days.forEach((d) => { d.day_type = typeByDay.get(d.day) ?? d.day_type; });
         slots = ((srcSlots as PlanSlot[]) ?? [])
           .map((s) => ({ plan_id: plan.id, day: shift(s.day), slot: s.slot, member_id: s.member_id, meal_id: s.meal_id, portions: s.portions, position: s.position }))
-          .filter((s) => s.day >= start && s.day < addDays(start, 21));
+          .filter((s) => s.day >= start && s.day < addDays(start, weeks * 7));
       }
     }
 
@@ -91,12 +94,18 @@ export default function PlansPage() {
       <h1>Meal plans</h1>
 
       <section className="card">
-        <h2>New 3-week plan</h2>
+        <h2>New meal plan</h2>
         <label className="field">Starts on (a Monday)
           <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
         </label>
         <label className="field">Name <span className="hint">Optional</span>
-          <input type="text" placeholder={`3 weeks from ${fmtDate(start)}`} value={name} onChange={(e) => setName(e.target.value)} />
+          <input type="text" placeholder={defaultName(start, weeks)} value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field">How many weeks
+          <span className="hint">You can add or remove a week later from inside the plan.</span>
+          <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))}>
+            {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} week{n === 1 ? "" : "s"}</option>)}
+          </select>
         </label>
         <label className="field">Start from
           <select value={from} onChange={(e) => setFrom(e.target.value as Start)}>

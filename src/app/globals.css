@@ -108,4 +108,4 @@ nav.tabs a[aria-current="page"] { color: var(--accent); box-shadow: inset 0 3px 
 .bar { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: 4px; }
 .bar i { display: block; height: 100%; background: var(--accent); }
 .total.over .bar i { background: var(--warn); }
-.weektabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.weektabs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }

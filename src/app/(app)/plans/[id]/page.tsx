@@ -6,8 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useHousehold } from "@/lib/useHousehold";
 import { add, mealPerServing, r, scale, ZERO } from "@/lib/nutrition";
-import { addDays, DAY_LONG, fmtDate, rowsFor, slotLabel, targetFor, weekday } from "@/lib/plan";
-import { SLOTS, type DayType, type Macros, type Meal, type Member, type Plan, type PlanDay, type PlanSlot, type Slot } from "@/lib/types";
+import { addDays, DAY_LONG, defaultDayType, fmtDate, rowsFor, slotLabel, targetFor, weekday } from "@/lib/plan";
+import { guestsOn } from "@/lib/shopping";
+import { SLOTS, type DayType, type Macros, type Meal, type Member, type Plan, type PlanDay, type PlanGuest, type PlanSlot, type Slot } from "@/lib/types";
 
 const DAY_TYPES: { v: DayType; label: string }[] = [
   { v: "office", label: "Office" },
@@ -29,22 +30,102 @@ function MealSelect({ value, slot, meals, onChange, allowNone, label }: {
   );
 }
 
+const PORTIONS = [
+  { v: 1, label: "Adult portions" },
+  { v: 0.8, label: "Smaller portions" },
+  { v: 0.6, label: "Child portions" },
+  { v: 1.25, label: "Larger portions" },
+];
+
+/** Guests staying for part of the plan: they eat the meals planned for everyone on those days. */
+function GuestsCard({ plan, guests, setGuests, onError }: {
+  plan: Plan; guests: PlanGuest[]; setGuests: (g: PlanGuest[]) => void; onError: (e: string) => void;
+}) {
+  const first = plan.start_date, last = addDays(plan.start_date, plan.weeks * 7 - 1);
+  const [open, setOpen] = useState(false);
+  const [g, setG] = useState({ name: "", people: 1, portion_factor: 1, from_day: first, to_day: addDays(first, 1) });
+
+  async function add() {
+    if (!g.name.trim()) return onError("Give the guests a name, e.g. Grandma or The Smiths.");
+    if (g.to_day < g.from_day) return onError("The leaving day is before the arriving day.");
+    const { data, error } = await supabase().from("plan_guests").insert({ plan_id: plan.id, ...g, name: g.name.trim() }).select().single();
+    if (error) return onError(error.message);
+    setGuests([...guests, data as PlanGuest].sort((a, b) => a.from_day.localeCompare(b.from_day)));
+    setG({ ...g, name: "", people: 1 });
+    setOpen(false);
+  }
+
+  async function remove(x: PlanGuest) {
+    const { error } = await supabase().from("plan_guests").delete().eq("id", x.id);
+    if (error) return onError(error.message);
+    setGuests(guests.filter((y) => y.id !== x.id));
+  }
+
+  return (
+    <section className="card tight">
+      <div className="row between">
+        <h2>Guests</h2>
+        <button className="btn sm" onClick={() => setOpen(!open)}>{open ? "Cancel" : "＋ Add guests"}</button>
+      </div>
+      {guests.length === 0 && !open && <p className="muted small" style={{ margin: 0 }}>Anyone staying? Add them and their portions are added to the shopping list for those days.</p>}
+      {guests.length > 0 && (
+        <ul className="list small">
+          {guests.map((x) => (
+            <li key={x.id} className="row between">
+              <span><b>{x.name}</b>{x.people > 1 ? ` · ${x.people} people` : ""} · {fmtDate(x.from_day)} to {fmtDate(x.to_day)}
+                {Number(x.portion_factor) !== 1 ? ` · ${PORTIONS.find((p) => p.v === Number(x.portion_factor))?.label.toLowerCase() ?? `${x.portion_factor}× portions`}` : ""}</span>
+              <button className="btn ghost sm danger" onClick={() => remove(x)} aria-label={`Remove ${x.name}`}>Remove</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && (
+        <div className="stack">
+          <div className="row">
+            <label className="field grow">Who<input type="text" placeholder="e.g. Grandma, The Smiths" value={g.name} onChange={(e) => setG({ ...g, name: e.target.value })} /></label>
+            <label className="field" style={{ width: 110 }}>People
+              <input type="number" min={1} max={20} value={g.people} onChange={(e) => setG({ ...g, people: Math.max(1, Number(e.target.value) || 1) })} />
+            </label>
+          </div>
+          <div className="row">
+            <label className="field grow">First day eating with you
+              <input type="date" min={first} max={last} value={g.from_day} onChange={(e) => setG({ ...g, from_day: e.target.value, to_day: g.to_day < e.target.value ? e.target.value : g.to_day })} />
+            </label>
+            <label className="field grow">Last day
+              <input type="date" min={g.from_day} max={last} value={g.to_day} onChange={(e) => setG({ ...g, to_day: e.target.value })} />
+            </label>
+          </div>
+          <label className="field">Portions (each)
+            <select value={g.portion_factor} onChange={(e) => setG({ ...g, portion_factor: Number(e.target.value) })}>
+              {PORTIONS.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
+            </select>
+          </label>
+          <button className="btn primary" onClick={add}>Add guests</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function PlanEditor() {
   const { id } = useParams<{ id: string }>();
   const { members, meals, mealMap, itemMap, loading } = useHousehold();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [days, setDays] = useState<PlanDay[]>([]);
   const [slots, setSlots] = useState<PlanSlot[]>([]);
+  const [guests, setGuests] = useState<PlanGuest[]>([]);
   const [week, setWeek] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const db = supabase();
-    const [p, d, s] = await Promise.all([
+    const [p, d, s, g] = await Promise.all([
       db.from("plans").select("*").eq("id", id).single(),
       db.from("plan_days").select("*").eq("plan_id", id).order("day"),
       db.from("plan_slots").select("*").eq("plan_id", id).order("position"),
+      db.from("plan_guests").select("*").eq("plan_id", id).order("from_day"),
     ]);
+    setGuests((g.data as PlanGuest[]) ?? []);
     if (p.error) setError(p.error.message);
     setPlan(p.data as Plan);
     setDays((d.data as PlanDay[]) ?? []);
@@ -110,6 +191,38 @@ export default function PlanEditor() {
     run(supabase().from("plan_slots").delete().in("id", own.map((s) => s.id)));
   }
 
+  async function addWeek() {
+    if (!plan || plan.weeks >= 6) return;
+    const start = addDays(plan.start_date, plan.weeks * 7);
+    const newDays = Array.from({ length: 7 }, (_, i) => { const day = addDays(start, i); return { plan_id: plan.id, day, day_type: defaultDayType(day) }; });
+    const db = supabase();
+    const a = await db.from("plan_days").upsert(newDays, { onConflict: "plan_id,day" });
+    const b = await db.from("plans").update({ weeks: plan.weeks + 1 }).eq("id", plan.id);
+    if (a.error || b.error) return setError((a.error ?? b.error)!.message);
+    setPlan({ ...plan, weeks: plan.weeks + 1 });
+    setDays([...days, ...newDays]);
+    setWeek(plan.weeks);
+  }
+
+  async function removeLastWeek() {
+    if (!plan || plan.weeks <= 1) return;
+    const from = addDays(plan.start_date, (plan.weeks - 1) * 7);
+    const used = slots.filter((s) => s.day >= from && s.meal_id).length;
+    if (!window.confirm(`Remove week ${plan.weeks}${used ? ` and its ${used} planned meal${used === 1 ? "" : "s"}` : ""}?`)) return;
+    const db = supabase();
+    const r = await Promise.all([
+      db.from("plan_slots").delete().eq("plan_id", plan.id).gte("day", from),
+      db.from("plan_days").delete().eq("plan_id", plan.id).gte("day", from),
+      db.from("plans").update({ weeks: plan.weeks - 1 }).eq("id", plan.id),
+    ]);
+    const err = r.find((x) => x.error)?.error;
+    if (err) return setError(err.message);
+    setPlan({ ...plan, weeks: plan.weeks - 1 });
+    setSlots(slots.filter((s) => s.day < from));
+    setDays(days.filter((d) => d.day < from));
+    setWeek(Math.min(week, plan.weeks - 2));
+  }
+
   function dayTotals(member: Member, day: string): Macros {
     const t = dayType(day);
     const rows = slots.filter((s) => s.day === day);
@@ -139,6 +252,13 @@ export default function PlanEditor() {
         ))}
       </div>
 
+      <div className="row">
+        {plan.weeks < 6 && <button className="btn sm" onClick={addWeek}>＋ Add a week</button>}
+        {plan.weeks > 1 && <button className="btn ghost sm danger" onClick={removeLastWeek}>Remove last week</button>}
+      </div>
+
+      <GuestsCard plan={plan} guests={guests} setGuests={setGuests} onError={setError} />
+
       {weekDays.map((day) => {
         const t = dayType(day);
         const dayRows = slots.filter((s) => s.day === day);
@@ -150,6 +270,11 @@ export default function PlanEditor() {
                 {DAY_TYPES.map((d) => <option key={d.v} value={d.v}>{d.label}</option>)}
               </select>
             </div>
+            {guestsOn(guests, day).length > 0 && (
+              <span className="tag" style={{ alignSelf: "flex-start" }}>
+                Staying: {guestsOn(guests, day).map((g) => `${g.name}${g.people > 1 ? ` (${g.people})` : ""}`).join(", ")} — eating the meals for everyone
+              </span>
+            )}
 
             {SLOTS.map((slot) => {
               const rows = dayRows.filter((r) => r.slot === slot);

@@ -47,7 +47,7 @@ export default function Home() {
         ) : (
           <>
             <p className="muted" style={{ margin: 0 }}>No plan covers this week yet.</p>
-            <Link className="btn primary" href="/plans">Start a 3-week plan</Link>
+            <Link className="btn primary" href="/plans">Start a meal plan</Link>
           </>
         )}
       </section>

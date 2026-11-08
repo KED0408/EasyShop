@@ -11,7 +11,7 @@ import {
   afterPurchase, AISLE_ORDER, CHECK_ONLY, deductPantry, fmtAmount, fmtPack, mealLines,
   pantryAvailable, regularsFor, suggestCategory, tidyName, weekNeeds,
 } from "@/lib/shopping";
-import type { Item, ListLine, PantryRow, Plan, PlanDay, PlanSlot, ShoppingList } from "@/lib/types";
+import type { Item, ListLine, PantryRow, Plan, PlanDay, PlanGuest, PlanSlot, ShoppingList } from "@/lib/types";
 
 /** "4 pints · 2 × 2-pint packs" style description for a non-meal line. */
 function packText(it: Item, l: ListLine): string {
@@ -132,7 +132,8 @@ export default function ListPage() {
     let current = (ln.data as ListLine[]) ?? [];
 
     if (sl.status === "open") {
-      const needs = weekNeeds(plan.start_date, sel.week, (d.data as PlanDay[]) ?? [], (s.data as PlanSlot[]) ?? [], members, mealMap);
+      const { data: gs } = await db.from("plan_guests").select("*").eq("plan_id", plan.id);
+      const needs = weekNeeds(plan.start_date, sel.week, (d.data as PlanDay[]) ?? [], (s.data as PlanSlot[]) ?? [], members, mealMap, (gs as PlanGuest[]) ?? []);
       const planned = mealLines(needs, pantryAvailable((p.data as PantryRow[]) ?? [], addDays(plan.start_date, sel.week * 7)), itemMap);
       const existingMeal = new Map(current.filter((x) => x.source === "meal").map((x) => [x.item_id, x]));
       const upserts = planned.map((pl) => {

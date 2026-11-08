@@ -1,5 +1,5 @@
 import { addDays, rowsFor } from "./plan";
-import type { Item, ListLine, Meal, Member, PantryRow, PlanDay, PlanSlot } from "./types";
+import type { Item, ListLine, Meal, Member, PantryRow, PlanDay, PlanGuest, PlanSlot } from "./types";
 import { SLOTS } from "./types";
 
 /** Items that are never bought by quantity — just checked at home. */
@@ -10,7 +10,12 @@ export const AISLE_ORDER = [
   "Spices & condiments", "Snacks & confectionery", "Desserts", "Drinks", "Household", "Toiletries & health", "Other",
 ];
 
-/** Total amount of each item the plan's meals need in one week, for everyone, at their portion sizes. */
+/** Guests eat the meals planned for everyone on the days they're staying. */
+export function guestsOn(guests: PlanGuest[], day: string): PlanGuest[] {
+  return guests.filter((g) => g.from_day <= day && day <= g.to_day);
+}
+
+/** Total amount of each item the plan's meals need in one week, for everyone (and any guests), at their portion sizes. */
 export function weekNeeds(
   planStart: string,
   week: number,
@@ -18,24 +23,29 @@ export function weekNeeds(
   slots: PlanSlot[],
   members: Member[],
   mealMap: Map<string, Meal>,
+  guests: PlanGuest[] = [],
 ): Map<string, number> {
   const need = new Map<string, number>();
   const start = addDays(planStart, week * 7);
+  const addMeal = (mealId: string | null, people: number) => {
+    const meal = mealId ? mealMap.get(mealId) : undefined;
+    if (!meal) return;
+    const share = people / (meal.servings || 1);
+    for (const c of meal.meal_components ?? []) need.set(c.item_id, (need.get(c.item_id) ?? 0) + c.amount * share);
+  };
   for (let i = 0; i < 7; i++) {
     const day = addDays(start, i);
     const dayType = days.find((d) => d.day === day)?.day_type ?? "home";
     const rows = slots.filter((s) => s.day === day);
     for (const member of members) {
       for (const slot of SLOTS) {
-        for (const row of rowsFor(member, slot, dayType, rows)) {
-          const meal = row.meal_id ? mealMap.get(row.meal_id) : undefined;
-          if (!meal) continue;
-          const share = (member.portion_factor * row.portions) / (meal.servings || 1);
-          for (const c of meal.meal_components ?? []) {
-            need.set(c.item_id, (need.get(c.item_id) ?? 0) + c.amount * share);
-          }
-        }
+        for (const row of rowsFor(member, slot, dayType, rows)) addMeal(row.meal_id, member.portion_factor * row.portions);
       }
+    }
+    const here = guestsOn(guests, day);
+    if (here.length) {
+      const portions = here.reduce((a, g) => a + g.people * Number(g.portion_factor), 0);
+      for (const row of rows.filter((r) => r.member_id === null && r.meal_id)) addMeal(row.meal_id, portions * row.portions);
     }
   }
   return need;
