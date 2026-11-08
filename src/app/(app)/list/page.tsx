@@ -2,20 +2,35 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import AlexaImport from "@/components/AlexaImport";
+import ListImport from "@/components/ListImport";
 import { supabase } from "@/lib/supabase/client";
 import { useHousehold } from "@/lib/useHousehold";
 import { addDays, fmtDate, weekday } from "@/lib/plan";
 import {
-  afterPurchase, AISLE_ORDER, CHECK_ONLY, deductPantry, fmtAmount, fmtPack, guessCategory, mealLines,
-  pantryAvailable, regularsFor, tidyName, weekNeeds,
+  afterPurchase, AISLE_ORDER, CHECK_ONLY, deductPantry, fmtAmount, fmtPack, mealLines,
+  pantryAvailable, regularsFor, suggestCategory, tidyName, weekNeeds,
 } from "@/lib/shopping";
 import type { Item, ListLine, PantryRow, Plan, PlanDay, PlanSlot, ShoppingList } from "@/lib/types";
 
 const SOURCE_LABEL: Record<ListLine["source"], string> = { meal: "meals", regular: "regular", alexa: "Alexa", added: "added" };
 const CACHE = "easyshop-list-cache";
 
-function pickDefault(plans: Plan[]): { planId: string; week: number } | null {
+type Sel = { kind: "plan"; planId: string; week: number } | { kind: "free"; listId: string } | { kind: "new" };
+
+function defaultName() {
+  return `Shop · ${new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`;
+}
+
+/** Open the newest open list of your own from the last week; otherwise the plan week being shopped for. */
+function pickDefault(plans: Plan[], own: ShoppingList[]): Sel {
+  const recent = own.find((l) => l.status === "open" && Date.now() - Date.parse((l as ShoppingList & { created_at: string }).created_at) < 7 * 864e5);
+  if (recent) return { kind: "free", listId: recent.id };
+  const p = pickPlanWeek(plans);
+  if (p) return { kind: "plan", ...p };
+  return own[0] ? { kind: "free", listId: own[0].id } : { kind: "new" };
+}
+
+function pickPlanWeek(plans: Plan[]): { planId: string; week: number } | null {
   if (!plans.length) return null;
   const today = new Date().toISOString().slice(0, 10);
   // You order on Wednesday or Thursday, so from Wednesday onwards the list opens on the following week.
@@ -32,19 +47,31 @@ function pickDefault(plans: Plan[]): { planId: string; week: number } | null {
 export default function ListPage() {
   const { members, items, itemMap, mealMap, loading, reload: reloadHousehold } = useHousehold();
   const [plans, setPlans] = useState<Plan[] | null>(null);
-  const [sel, setSel] = useState<{ planId: string; week: number } | null>(null);
+  const [own, setOwn] = useState<ShoppingList[]>([]);
+  const [sel, setSel] = useState<Sel | null>(null);
+  const [newName, setNewName] = useState(defaultName());
+  const [withRegulars, setWithRegulars] = useState(true);
   const [list, setList] = useState<ShoppingList | null>(null);
   const [lines, setLines] = useState<ListLine[]>([]);
   const [mode, setMode] = useState<"check" | "shop">("check");
-  const [panel, setPanel] = useState<"none" | "alexa">("none");
+  const [panel, setPanel] = useState<"none" | "alexa" | "paste">("none");
   const [adding, setAdding] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
 
+  const loadLists = useCallback(async () => {
+    const db = supabase();
+    const [p, o] = await Promise.all([
+      db.from("plans").select("*").order("start_date"),
+      db.from("shopping_lists").select("*").eq("kind", "free").order("created_at", { ascending: false }),
+    ]);
+    return { plans: (p.data as Plan[]) ?? [], own: (o.data as ShoppingList[]) ?? [], error: p.error };
+  }, []);
+
   useEffect(() => {
-    supabase().from("plans").select("*").order("start_date").then(({ data, error }) => {
+    loadLists().then(({ plans: ps, own: os, error }) => {
       if (error) {
         setOffline(true);
         try {
@@ -52,23 +79,36 @@ export default function ListPage() {
           if (c) { setList(c.list); setLines(c.lines); setMode("shop"); }
         } catch {}
       }
-      const ps = (data as Plan[]) ?? [];
       setPlans(ps);
-      setSel(pickDefault(ps));
+      setOwn(os);
+      setSel(pickDefault(ps, os));
     });
-  }, []);
+  }, [loadLists]);
 
-  const plan = plans?.find((p) => p.id === sel?.planId) ?? null;
+  const plan = sel?.kind === "plan" ? plans?.find((p) => p.id === sel.planId) ?? null : null;
 
   /** Load (or create) the list for the chosen week and bring its meal lines up to date with the plan. */
   const build = useCallback(async () => {
-    if (!plan || !sel || loading) return;
+    if (!sel || loading) return;
+    const db = supabase();
+    if (sel.kind === "new") { setList(null); setLines([]); return; }
+    if (sel.kind === "free") {
+      setError(null);
+      const [{ data: fl, error: fe }, { data: fll }] = await Promise.all([
+        db.from("shopping_lists").select("*").eq("id", sel.listId).single(),
+        db.from("list_lines").select("*").eq("list_id", sel.listId),
+      ]);
+      if (fe) return setError(fe.message);
+      setList(fl as ShoppingList);
+      setLines((fll as ListLine[]) ?? []);
+      return;
+    }
+    if (!plan) return;
     setBusy("Updating from the plan…");
     setError(null);
-    const db = supabase();
     let { data: l } = await db.from("shopping_lists").select("*").eq("plan_id", plan.id).eq("week", sel.week).maybeSingle();
     if (!l) {
-      const ins = await db.from("shopping_lists").insert({ plan_id: plan.id, week: sel.week }).select().single();
+      const ins = await db.from("shopping_lists").insert({ plan_id: plan.id, week: sel.week, kind: "plan" }).select().single();
       if (ins.error) { setBusy(null); return setError(ins.error.message); }
       l = ins.data;
     }
@@ -122,6 +162,50 @@ export default function ListPage() {
     if (list) try { localStorage.setItem(CACHE, JSON.stringify({ list, lines })); } catch {}
   }, [list, lines]);
 
+  async function createList() {
+    const db = supabase();
+    const name = newName.trim() || defaultName();
+    const { data, error } = await db.from("shopping_lists").insert({ kind: "free", name, week: 0 }).select().single();
+    if (error) return setError(error.message);
+    const l = data as ShoppingList;
+    if (withRegulars) {
+      const regs = regularsFor(items, 0).map((it) => ({ list_id: l.id, item_id: it.id, source: "regular" as const, packs: 1 }));
+      if (regs.length) await db.from("list_lines").insert(regs);
+    }
+    setOwn([l, ...own]);
+    setNewName(defaultName());
+    setMessage(`${name} created. Add items below, or paste a whole list.`);
+    setSel({ kind: "free", listId: l.id });
+  }
+
+  async function renameList() {
+    if (!list || list.kind !== "free") return;
+    const name = window.prompt("Name this list", list.name ?? "")?.trim();
+    if (!name) return;
+    const { error } = await supabase().from("shopping_lists").update({ name }).eq("id", list.id);
+    if (error) return setError(error.message);
+    setOwn(own.map((l) => (l.id === list.id ? { ...l, name } : l)));
+    setList({ ...list, name });
+  }
+
+  async function deleteList() {
+    if (!list || list.kind !== "free" || !window.confirm(`Delete "${list.name}"? This can't be undone.`)) return;
+    const { error } = await supabase().from("shopping_lists").delete().eq("id", list.id);
+    if (error) return setError(error.message);
+    const rest = own.filter((l) => l.id !== list.id);
+    setOwn(rest);
+    setSel(pickDefault(plans ?? [], rest));
+  }
+
+  function choose(v: string) {
+    setMessage(null);
+    setPanel("none");
+    if (v === "new") return setSel({ kind: "new" });
+    const [k, id] = v.split(":");
+    if (k === "free") setSel({ kind: "free", listId: id });
+    else setSel({ kind: "plan", planId: id, week: plans?.find((p) => p.id === id) ? (pickPlanWeek([plans!.find((p) => p.id === id)!])?.week ?? 0) : 0 });
+  }
+
   function patch(line: ListLine, p: Partial<ListLine>) {
     setLines(lines.map((x) => (x.id === line.id ? { ...x, ...p } : x)));
     supabase().from("list_lines").update(p).eq("id", line.id).then(({ error }) => error && setError(error.message));
@@ -134,7 +218,7 @@ export default function ListPage() {
     let item: Item | undefined = items.find((i) => i.name.toLowerCase() === name.toLowerCase());
     if (!item) {
       const ins = await db.from("items").insert({
-        name: tidyName(name), category: guessCategory(name), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1,
+        name: tidyName(name), category: suggestCategory(name, items), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1,
       }).select().single();
       if (ins.error) return setError(ins.error.message);
       item = ins.data as Item;
@@ -151,7 +235,7 @@ export default function ListPage() {
   }
 
   async function markBought() {
-    if (!list || !window.confirm("Mark this week as bought? Leftovers from part-used packs will be saved for the following weeks.")) return;
+    if (!list || !window.confirm(list.kind === "free" ? "Mark this list as bought?" : "Mark this week as bought? Leftovers from part-used packs will be saved for the following weeks.")) return;
     setBusy("Saving…");
     const db = supabase();
     const today = new Date().toISOString().slice(0, 10);
@@ -168,7 +252,8 @@ export default function ListPage() {
     const err = res.find((r) => r.error)?.error;
     setBusy(null);
     if (err) return setError(err.message);
-    setMessage(`Done. ${add.length} leftover${add.length === 1 ? "" : "s"} saved to the fridge record.`);
+    setMessage(add.length ? `Done. ${add.length} leftover${add.length === 1 ? "" : "s"} saved to the fridge record.` : "Done — marked as bought.");
+    if (list.kind === "free") setOwn(own.map((l) => (l.id === list.id ? { ...l, status: "bought" } : l)));
     build();
   }
 
@@ -197,27 +282,53 @@ export default function ListPage() {
   const ticked = toBuy.filter((l) => l.ticked).length;
   const removed = lines.filter((l) => l.removed);
 
-  if (plans && plans.length === 0) {
-    return <main className="page"><h1>Shopping list</h1><p>Create a meal plan first. <Link href="/plans">Go to plans</Link></p></main>;
-  }
-
   return (
     <main className="page">
       <h1>Shopping list</h1>
       {offline && <p className="notice">You&apos;re offline — showing the last list saved on this phone. Ticks will not sync until you&apos;re back online.</p>}
 
-      {plans && plan && sel && (
+      {plans && sel && (
         <section className="card tight">
-          <select aria-label="Plan" value={plan.id} onChange={(e) => setSel({ planId: e.target.value, week: 0 })}>
-            {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          <select aria-label="Which list" value={sel.kind === "new" ? "new" : sel.kind === "free" ? `free:${sel.listId}` : `plan:${sel.planId}`} onChange={(e) => choose(e.target.value)}>
+            <option value="new">＋ New list (no meal plan needed)</option>
+            {own.length > 0 && (
+              <optgroup label="Your lists">
+                {own.map((l) => <option key={l.id} value={`free:${l.id}`}>{l.name}{l.status === "bought" ? " · bought" : ""}</option>)}
+              </optgroup>
+            )}
+            {plans.length > 0 && (
+              <optgroup label="From a meal plan">
+                {plans.map((p) => <option key={p.id} value={`plan:${p.id}`}>{p.name}</option>)}
+              </optgroup>
+            )}
           </select>
-          <div className="weektabs">
-            {Array.from({ length: plan.weeks }, (_, w) => (
-              <button key={w} className="chip" aria-pressed={sel.week === w} onClick={() => setSel({ planId: plan.id, week: w })}>
-                Week {w + 1} · {fmtDate(addDays(plan.start_date, w * 7))}
-              </button>
-            ))}
+          {plan && sel.kind === "plan" && (
+            <div className="weektabs">
+              {Array.from({ length: plan.weeks }, (_, w) => (
+                <button key={w} className="chip" aria-pressed={sel.week === w} onClick={() => setSel({ kind: "plan", planId: plan.id, week: w })}>
+                  Week {w + 1} · {fmtDate(addDays(plan.start_date, w * 7))}
+                </button>
+              ))}
+            </div>
+          )}
+          {sel.kind === "free" && list?.kind === "free" && (
+            <div className="row">
+              <button className="btn ghost sm" onClick={renameList}>Rename</button>
+              <button className="btn ghost sm danger" onClick={deleteList}>Delete list</button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {sel?.kind === "new" && (
+        <section className="card">
+          <h2>New shopping list</h2>
+          <p className="muted small" style={{ margin: 0 }}>A list of your own — no meal plan needed. Add items one by one or paste a whole list.</p>
+          <label className="field">Name<input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} /></label>
+          <div className="chips">
+            <button className="chip" aria-pressed={withRegulars} onClick={() => setWithRegulars(!withRegulars)}>Start with my weekly regulars</button>
           </div>
+          <button className="btn primary" onClick={createList}>Create list</button>
         </section>
       )}
 
@@ -231,7 +342,7 @@ export default function ListPage() {
             </div>
           </div>
           {mode === "check" && list.status === "open" && (
-            <p className="muted small" style={{ margin: 0 }}>Tick <b>Have it</b> for anything already in, and adjust packs. Leftovers from earlier weeks are already taken off.</p>
+            <p className="muted small" style={{ margin: 0 }}>Tick <b>Have it</b> for anything already in, and adjust packs.{list.kind === "plan" ? " Leftovers from earlier weeks are already taken off." : ""}</p>
           )}
           {list.status === "open" && (
             <div className="row">
@@ -239,6 +350,7 @@ export default function ListPage() {
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }} aria-label="Add an item" className="grow" style={{ width: "auto" }} />
               <datalist id="all-items">{items.map((i) => <option key={i.id} value={i.name} />)}</datalist>
               <button className="btn sm" onClick={addItem}>Add</button>
+              <button className="btn sm" onClick={() => setPanel(panel === "paste" ? "none" : "paste")}>Paste a list</button>
               <button className="btn sm" onClick={() => setPanel(panel === "alexa" ? "none" : "alexa")}>Import Alexa list</button>
               <Link className="btn sm" href="/cupboard">Store cupboard</Link>
             </div>
@@ -246,9 +358,16 @@ export default function ListPage() {
         </section>
       )}
 
-      {panel === "alexa" && list && (
-        <AlexaImport items={items} listId={list.id} onClose={() => setPanel("none")}
-          onDone={(n) => { setPanel("none"); setMessage(`${n} item${n === 1 ? "" : "s"} added from Alexa. Now clear the Alexa shopping list so nothing is added twice.`); reloadHousehold(); build(); }} />
+      {panel !== "none" && list && (
+        <ListImport items={items} listId={list.id} source={panel === "alexa" ? "alexa" : "added"} onClose={() => setPanel("none")}
+          onDone={(n) => {
+            const was = panel;
+            setPanel("none");
+            setMessage(was === "alexa"
+              ? `${n} item${n === 1 ? "" : "s"} added from Alexa. Now clear the Alexa shopping list so nothing is added twice.`
+              : `${n} item${n === 1 ? "" : "s"} added to the list.`);
+            reloadHousehold(); build();
+          }} />
       )}
 
       {message && <p className="notice" role="status">{message}</p>}
@@ -323,7 +442,11 @@ export default function ListPage() {
         </details>
       )}
 
-      {list && (
+      {list && list.kind === "free" && visible.length === 0 && (
+        <p className="muted">This list is empty — type an item above or use <b>Paste a list</b>.</p>
+      )}
+
+      {list && sel?.kind !== "new" && (
         <div className="row">
           {list.status === "open"
             ? <button className="btn primary" onClick={markBought} disabled={!!busy}>Mark as bought</button>

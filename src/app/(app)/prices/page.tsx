@@ -11,7 +11,9 @@ import {
 } from "@/lib/stores";
 import type { ListLine, Plan, ShoppingList } from "@/lib/types";
 
-type ListOpt = ShoppingList & { plan: Plan };
+type ListOpt = ShoppingList & { plan: Plan | null };
+
+const listLabel = (l: ListOpt) => (l.plan ? `${l.plan.name} · Week ${l.week + 1} (${fmtDate(addDays(l.plan.start_date, l.week * 7))})` : l.name ?? "My list");
 
 type FillOut = { store: StoreId; added: number; total: number; problems: { item: string; product: string; want: number; got: number; status: string; note: string | null }[]; not_priced: string[] };
 
@@ -59,7 +61,7 @@ export default function PricesPage() {
     db.from("settings").select("*").eq("id", 1).single().then(({ data }) => setSettings(data as Settings));
     db.from("shopping_lists").select("*, plan:plans(*)").order("created_at", { ascending: false }).then(({ data, error }) => {
       if (error) setError(error.message);
-      const ls = ((data as ListOpt[]) ?? []).filter((l) => l.plan);
+      const ls = ((data as ListOpt[]) ?? []).filter((l) => l.plan || l.kind === "free");
       setLists(ls);
       const pick = ls.find((l) => l.status === "open") ?? ls[0];
       if (pick) setListId(pick.id);
@@ -193,7 +195,7 @@ export default function PricesPage() {
         <select aria-label="Shopping list" value={listId} onChange={(e) => setListId(e.target.value)}>
           {lists.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.plan.name} · Week {l.week + 1} ({fmtDate(addDays(l.plan.start_date, l.week * 7))}){l.status === "bought" ? " · bought" : ""}
+              {listLabel(l)}{l.status === "bought" ? " · bought" : ""}
             </option>
           ))}
         </select>
@@ -327,7 +329,7 @@ export default function PricesPage() {
         </>
       )}
       {error && <p className="error small">{error}</p>}
-      {list && <p className="muted small">List: {list.plan.name}, week {list.week + 1}. Change what&apos;s on it from the <Link href="/list">List</Link> tab.</p>}
+      {list && <p className="muted small">List: {listLabel(list)}. Change what&apos;s on it from the <Link href="/list">List</Link> tab.</p>}
     </main>
   );
 }

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useHousehold } from "@/lib/useHousehold";
-import { AISLE_ORDER, guessCategory, tidyName } from "@/lib/shopping";
+import CupboardImport from "@/components/CupboardImport";
+import { AISLE_ORDER, suggestCategory, tidyName } from "@/lib/shopping";
 import type { Item } from "@/lib/types";
 
 const FREQ: { v: NonNullable<Item["buy_frequency"]>; label: string }[] = [
@@ -73,9 +74,10 @@ export default function CupboardPage() {
   const [onlyRegular, setOnlyRegular] = useState(false);
   const [newName, setNewName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const cupboard = items.filter((i) => i.is_cupboard);
-  const cats = AISLE_ORDER.filter((c) => cupboard.some((i) => i.category === c));
+  const cats = [...new Set([...AISLE_ORDER, ...cupboard.map((i) => i.category)])].filter((c) => cupboard.some((i) => i.category === c));
   const shown = cupboard
     .filter((i) => cat === "all" || i.category === cat)
     .filter((i) => !onlyRegular || i.buy_frequency === "weekly" || i.buy_frequency === "fortnightly")
@@ -87,14 +89,16 @@ export default function CupboardPage() {
     const existing = items.find((i) => i.name.toLowerCase() === name.toLowerCase());
     const res = existing
       ? await supabase().from("items").update({ is_cupboard: true, buy_frequency: existing.buy_frequency ?? "as_needed" }).eq("id", existing.id)
-      : await supabase().from("items").insert({ name, category: guessCategory(name), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1 });
+      : await supabase().from("items").insert({ name, category: suggestCategory(name, items), unit: "each", is_cupboard: true, buy_frequency: "as_needed", pack_size: 1 });
     if (res.error) return setMsg(res.error.message);
     setNewName("");
     setMsg(`${name} added to the store cupboard.`);
     reload();
   }
 
-  const byCat = AISLE_ORDER.map((c) => [c, shown.filter((i) => i.category === c)] as const).filter(([, l]) => l.length);
+  // your own aisles (e.g. ones typed into an imported CSV) are shown after the standard ones
+  const allAisles = [...new Set([...AISLE_ORDER, ...cupboard.map((i) => i.category)])];
+  const byCat = allAisles.map((c) => [c, shown.filter((i) => i.category === c)] as const).filter(([, l]) => l.length);
 
   return (
     <main className="page">
@@ -107,9 +111,18 @@ export default function CupboardPage() {
           <input type="text" placeholder="New item, e.g. Dishwasher tablets" value={newName} onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }} aria-label="New store-cupboard item" />
           <button className="btn primary sm" onClick={add}>Add</button>
+          <button className="btn sm" onClick={() => setImporting(!importing)}>Import list</button>
         </div>
         {msg && <p className="muted small" style={{ margin: 0 }}>{msg}</p>}
       </section>
+      {importing && (
+        <CupboardImport items={items} onClose={() => setImporting(false)}
+          onDone={(added, updated) => {
+            setImporting(false);
+            setMsg(`${added} new item${added === 1 ? "" : "s"} added to the store cupboard${updated ? `, ${updated} existing item${updated === 1 ? "" : "s"} moved into it` : ""}.`);
+            reload();
+          }} />
+      )}
       <input type="text" placeholder="Search the cupboard" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the cupboard" />
       <div className="chips">
         <button className="chip" aria-pressed={onlyRegular} onClick={() => setOnlyRegular(!onlyRegular)}>Regulars only</button>

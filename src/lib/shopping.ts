@@ -143,18 +143,65 @@ export function fmtPack(item: Item): string {
 // Alexa import: turn pasted text into lines and match each to an item
 // ---------------------------------------------------------------------------
 
+export interface PastedLine {
+  text: string;
+  qty: number;
+  category?: string;
+  frequency?: "weekly" | "fortnightly" | "as_needed";
+}
+
+const UNIT_WORDS = /^(g|kg|ml|l|ltr|litres?|pints?|pack|packs|pk|x|cl|oz|lb)\b/i;
+
+/** One pasted line → name + quantity. Understands "2 x milk", "2x milk", "milk x2", "milk (2)", "3 bananas". */
+function splitQty(raw: string): { text: string; qty: number } {
+  let s = raw.replace(/^\s*(?:[-•*·▪◦]|\d+[.)\]])\s+/, "").replace(/^\[\s?[xX ]?\s?\]\s*/, "").replace(/\s+/g, " ").trim();
+  let qty = 1;
+  let m = s.match(/^(\d{1,2})\s*[x×]\s*(.+)$/i);
+  if (m) return { text: m[2].trim(), qty: Number(m[1]) };
+  m = s.match(/^(.+?)\s*[x×]\s*(\d{1,2})$/i) || s.match(/^(.+?)\s*\((\d{1,2})\)$/);
+  if (m) return { text: m[1].trim(), qty: Number(m[2]) };
+  m = s.match(/^(\d{1,2})\s+(.+)$/);
+  if (m && !UNIT_WORDS.test(m[2])) { qty = Number(m[1]); s = m[2]; }
+  return { text: s.trim(), qty: Math.max(1, qty) };
+}
+
+const FREQ_WORDS: Record<string, PastedLine["frequency"]> = {
+  weekly: "weekly", "every week": "weekly", week: "weekly",
+  fortnightly: "fortnightly", "every 2 weeks": "fortnightly", "2 weeks": "fortnightly",
+  "as needed": "as_needed", as_needed: "as_needed", occasionally: "as_needed", sometimes: "as_needed",
+};
+
+/**
+ * Turn pasted text or a .txt/.csv file into items.
+ * - one item per line (a single line with commas is split on the commas)
+ * - CSV: name, then optional aisle and how-often columns; a header row is skipped
+ * - duplicates are merged and their quantities added up
+ */
+export function parseLines(text: string, opts: { csv?: boolean; aisles?: string[] } = {}): PastedLine[] {
+  let rows = text.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
+  if (!opts.csv && rows.length === 1 && /[,;]/.test(rows[0])) rows = rows[0].split(/[,;]/).map((r) => r.trim()).filter(Boolean);
+  const aisleMap = new Map((opts.aisles ?? []).map((a) => [a.toLowerCase(), a]));
+  const out = new Map<string, PastedLine>();
+  rows.forEach((row, i) => {
+    let cells = [row];
+    if (opts.csv) cells = row.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map((c) => c.replace(/^"|"$/g, "").trim());
+    if (opts.csv && i === 0 && /^(name|item|items|product)$/i.test(cells[0])) return;
+    const { text, qty } = splitQty(cells[0]);
+    if (text.length < 2 || /^shopping( list)?:?$/i.test(text)) return;
+    const line: PastedLine = { text, qty };
+    if (cells[1]) line.category = aisleMap.get(cells[1].toLowerCase());
+    if (cells[2]) line.frequency = FREQ_WORDS[cells[2].toLowerCase()];
+    const key = text.toLowerCase();
+    const prev = out.get(key);
+    if (prev) prev.qty += qty;
+    else out.set(key, line);
+  });
+  return [...out.values()];
+}
+
+/** Kept for older callers: names only. */
 export function parsePasted(text: string): string[] {
-  const seen = new Set<string>();
-  return text
-    .split(/\r?\n|,|;/)
-    .map((s) => s.replace(/^[\s\-•*·\d.)\]]+/, "").replace(/^x\s+/i, "").replace(/\s+/g, " ").trim())
-    .filter((s) => s.length > 1 && !/^shopping( list)?$/i.test(s))
-    .filter((s) => {
-      const k = s.toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
+  return parseLines(text).map((l) => l.text);
 }
 
 function norm(s: string): string[] {
@@ -192,22 +239,52 @@ export function matchItem(text: string, items: Item[]): { item: Item; score: num
 }
 
 const CATEGORY_WORDS: [string, string[]][] = [
-  ["Fruit & veg", ["apple", "banana", "orange", "grape", "lettuce", "tomato", "potato", "onion", "carrot", "pepper", "mushroom", "broccoli", "salad", "berr", "lemon", "lime", "avocado", "cucumber", "garlic", "ginger", "melon", "pear", "spinach"]],
+  ["Fruit & veg", ["apple", "banana", "orange", "grape", "lettuce", "tomato", "potato", "onion", "carrot", "pepper", "mushroom", "broccoli", "salad", "berr", "lemon", "lime", "avocado", "cucumber", "garlic", "ginger", "melon", "pear", "spinach", "strawberr", "blackberr", "raspberr", "blueberr", "cherr", "celery", "leek", "kale", "salad"]],
   ["Meat & fish", ["chicken", "beef", "pork", "lamb", "mince", "bacon", "sausage", "ham", "fish", "salmon", "cod", "tuna", "prawn", "steak", "turkey"]],
   ["Dairy & eggs", ["milk", "cheese", "yogurt", "yoghurt", "butter", "cream", "egg"]],
-  ["Bread & bakery", ["bread", "roll", "bagel", "wrap", "crumpet", "muffin", "croissant", "loaf"]],
-  ["Frozen", ["frozen", "ice cream", "chips", "peas"]],
-  ["Drinks", ["coke", "cola", "juice", "water", "squash", "tea", "coffee", "beer", "wine", "lemonade", "pepsi"]],
-  ["Snacks & confectionery", ["crisp", "chocolate", "biscuit", "sweet", "cake", "popcorn", "nuts"]],
-  ["Household", ["washing", "bleach", "cleaner", "foil", "bin bag", "toilet", "kitchen roll", "sponge", "detergent", "dishwasher", "pods"]],
-  ["Toiletries & health", ["shampoo", "toothpaste", "soap", "deodorant", "razor", "plaster", "paracetamol", "ibuprofen", "shower gel"]],
-  ["Tins, jars & dry", ["tin", "pasta", "rice", "beans", "soup", "sauce", "flour", "sugar", "cereal", "oats", "stock"]],
-  ["Spices & condiments", ["salt", "pepper", "spice", "ketchup", "mayo", "vinegar", "oil", "mustard", "herb"]],
+  ["Bread & bakery", ["bread", "bread roll", "finger roll", "brioche", "bagel", "wrap", "crumpet", "muffin", "croissant", "loaf"]],
+  ["Snacks & confectionery", ["crisp", "chocolate", "biscuit", "sweet", "cake", "popcorn", "nuts", "kettle", "tortilla chips", "pringles", "doritos", "cereal bar", "flapjack"]],
+  ["Frozen", ["frozen", "ice cream", "chips", "peas", "fish fingers", "oven chips", "ice lolly"]],
+  ["Drinks", ["coke", "cola", "juice", "water", "squash", "tea", "coffee", "beer", "wine", "lemonade", "pepsi", "gin", "tonic", "prosecco", "lager", "cider", "fanta", "sprite", "smoothie"]],
+  ["Household", ["washing", "bleach", "loo roll", "toilet roll", "cleaner", "foil", "bin bag", "toilet", "kitchen roll", "sponge", "detergent", "dishwasher", "pods", "fabric conditioner", "softener", "cling", "batteries", "light bulb", "anti-bac", "wipes", "polish", "laundry"]],
+  ["Toiletries & health", ["shampoo", "toothpaste", "soap", "deodorant", "razor", "plaster", "paracetamol", "ibuprofen", "shower gel", "conditioner", "mouthwash", "floss", "toothbrush", "moisturiser", "sun cream", "vitamin", "cotton", "hand wash", "lip balm", "tissues"]],
+  ["Tins, jars & dry", ["tin", "pasta", "rice", "beans", "soup", "sauce", "flour", "sugar", "cereal", "oats", "stock", "granola", "muesli", "cornflakes", "weetabix", "lentil", "chickpea", "pulse", "noodle", "jam", "honey", "peanut butter", "marmite", "tuna", "passata", "couscous", "quinoa", "crackers"]],
+  ["Spices & condiments", ["salt", "pepper", "spice", "ketchup", "mayo", "vinegar", "oil", "mustard", "herb", "cumin", "paprika", "turmeric", "oregano", "seasoning", "gravy", "chilli powder", "curry powder", "garam", "nutmeg", "bay leaves", "brown sauce", "soy"]],
 ];
+
+/**
+ * Suggest an aisle for a new item from the items you already have: the aisle of the existing items that
+ * share the most words with it (the last word — usually what the thing is — counts double). Falls back to
+ * keywords, then "Other".
+ */
+export function suggestCategory(name: string, items: Pick<Item, "name" | "category">[]): string {
+  const q = norm(name).filter((w) => w.length >= 3 && !/^(pint|pack|tin|tinned|large|small|medium|fresh|frozen|organic|british)$/.test(w));
+  if (q.length) {
+    const head = q[q.length - 1];
+    const score = new Map<string, number>();
+    for (const it of items) {
+      if (!it.category || it.category === "Other") continue;
+      const t = norm(it.name.replace(/\(.*?\)/g, " "));
+      const tset = new Set(t);
+      const hits = q.filter((w) => tset.has(w)).length;
+      if (!hits) continue;
+      // what the thing is (last word) matching counts most; extra words in the existing name count against it
+      const sameThing = t[t.length - 1] === head ? 3 : 0;
+      const extra = t.filter((w) => !q.includes(w)).length;
+      const sc = hits + sameThing - 0.3 * extra;
+      if (sc < 2) continue;
+      // add up the good matches, so an aisle with several similar items wins a tie
+      score.set(it.category, (score.get(it.category) ?? 0) + sc);
+    }
+    const best = [...score.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (best) return best[0];
+  }
+  return guessCategory(name);
+}
 
 export function guessCategory(name: string): string {
   const n = name.toLowerCase();
-  for (const [cat, words] of CATEGORY_WORDS) if (words.some((w) => n.includes(w))) return cat;
+  for (const [cat, words] of CATEGORY_WORDS) if (words.some((w) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(n))) return cat;
   return "Other";
 }
 

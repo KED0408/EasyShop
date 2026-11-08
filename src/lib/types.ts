@@ -45,7 +45,9 @@ export interface PantryRow {
 
 export interface ShoppingList {
   id: string;
-  plan_id: string;
+  plan_id: string | null;
+  kind: "plan" | "free";
+  name: string | null;
   week: number;
   status: "open" | "bought";
   bought_at: string | null;
